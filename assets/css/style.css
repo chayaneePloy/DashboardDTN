@@ -1,0 +1,33 @@
+.process-timeline {
+    position: relative;
+    padding-left: 50px;
+    margin: 30px 0;
+}
+
+.process-timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #dee2e6;
+}
+
+.process-step {
+    position: relative;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.process-step.completed {
+    border-left: 4px solid #28a745;
+}
+
+.step-number {
+    position: absolute;
+    left: -40
+}

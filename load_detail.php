@@ -1,5 +1,5 @@
 <?php
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
+$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", ""); 
 $id = intval($_GET['id']);
 
 // ดึงชื่อโครงการ
@@ -18,7 +18,7 @@ $details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 if(!$details){
     echo "<p>ไม่มีรายละเอียด</p>";
     exit;
-}
+} 
 
 // แสดงตาราง
 echo "<h5>รายละเอียดงบประมาณโครงการ: <span class='text-primary'>{$projectName}</span></h5>";

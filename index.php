@@ -1,43 +1,214 @@
 <?php
-include 'db.php'; // เชื่อมต่อฐานข้อมูล
+// ---------------- เชื่อมต่อฐานข้อมูล ----------------
+$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงรายการโครงการทั้งหมด
-$projects = $pdo->query("SELECT * FROM projects ORDER BY fiscal_year DESC, project_id DESC");
+// ดึงข้อมูลขั้นตอนโครงการ
+$steps_stmt = $pdo->query("
+    SELECT step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed
+    FROM project_steps
+    ORDER BY step_order
+");
+
+// ดึงข้อมูลความคืบหน้า
+$progress_stmt = $pdo->query("
+    SELECT ps.step_name, pp.progress_percent 
+    FROM project_progress pp
+    JOIN project_steps ps ON pp.step_id = ps.id
+    ORDER BY ps.step_order
+");
+
+$progress_data = [
+    'labels' => [],
+    'values' => []
+];
+
+while ($row = $progress_stmt->fetch(PDO::FETCH_ASSOC)) {
+    $progress_data['labels'][] = $row['step_name'];
+    $progress_data['values'][] = $row['progress_percent'];
+}
+
+// ฟังก์ชันแปลงวันที่ไทย
+function thai_date($date) {
+    if (!$date) return '';
+    $months = [
+        "", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
+    $ts = strtotime($date);
+    return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts) + 543);
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>รายการโครงการ</title>
-<style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f0f0f0; }
-    a.button { padding: 5px 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-    a.button:hover { background: #0056b3; }
-</style>
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามขั้นตอนโครงการ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .process-timeline {
+            position: relative;
+            padding-left: 50px;
+            margin: 30px 0;
+        }
+        .process-timeline::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #dee2e6;
+        }
+        .process-step {
+            position: relative;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .process-step.completed {
+            border-left: 4px solid #28a745;
+        }
+        .step-number {
+            position: absolute;
+            left: -40px;
+            top: 0;
+            width: 40px;
+            height: 40px;
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .step-header h3 {
+            margin: 0;
+            flex-grow: 1;
+            color: #2c3e50;
+        }
+        .step-date {
+            background: #f1c40f;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .sub-steps {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .progress-chart {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .navbar {
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        footer {
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+    </head>
 <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">ระบบติดตามขั้นตอนโครงการ</a>
+        </div>
+    </nav>
 
-<h1>รายการโครงการ</h1>
-<table>
-    <tr>
-        <th>ชื่อโครงการ</th>
-        <th>ประเภท</th>
-        <th>ปีงบประมาณ</th>
-        <th>ดูรายละเอียด</th>
-    </tr>
-    <?php while($row = $projects->fetch(PDO::FETCH_ASSOC)): ?>
+    <div class="container my-4">
+        <h1 class="text-center mb-4">ขั้นตอนการดำเนินโครงการ</h1>
         
+        <!-- Timeline -->
+        <div class="process-timeline">
+            <?php while($step = $steps_stmt->fetch(PDO::FETCH_ASSOC)): ?>
+            <div class="process-step <?php echo $step['is_completed'] ? 'completed' : ''; ?>">
+                <div class="step-number"><?php echo $step['step_order']; ?></div>
+                <div class="step-header">
+                    <h3><?php echo $step['step_name']; ?></h3>
+                    <span class="step-date"><?php echo thai_date($step['step_date']); ?></span>
+                </div>
+                <div class="step-content">
+                    <p><?php echo $step['step_description']; ?></p>
+                    <?php if(!empty($step['sub_steps'])): ?>
+                        <div class="sub-steps">
+                            <h4>ขั้นตอนย่อย:</h4>
+                            <p><?php echo nl2br($step['sub_steps']); ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if(!empty($step['document_path'])): ?>
+                        <div class="step-documents">
+                            <a href="documents/<?php echo $step['document_path']; ?>" class="btn btn-sm btn-outline-primary">ดูเอกสาร</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endwhile; ?>
+        </div>
         
-    <tr>
-        <td><?= htmlspecialchars($row['project_name']) ?></td>
-        <td><?= htmlspecialchars($row['project_type']) ?></td>
-        <td><?= htmlspecialchars($row['fiscal_year']) ?></td>
-        <td><a class="button" href="view_project.php?id=<?= $row['project_id'] ?>">ดู</a></td>
-    </tr>
-    <?php endwhile; ?>
-</table>
+        <!-- Chart -->
+        <div class="progress-chart mt-5">
+            <h2 class="text-center mb-4">ความคืบหน้าโครงการ</h2>
+            <canvas id="progressChart" height="100"></canvas>
+        </div>
+    </div>
 
+    <footer class="bg-dark text-white text-center py-3 mt-5">
+        <p>&copy; <?php echo date('Y')+543; ?> ระบบติดตามขั้นตอนโครงการ</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: <?php echo json_encode($progress_data['labels']); ?>,
+                    datasets: [{
+                        label: 'ความคืบหน้า (%)',
+                        data: <?php echo json_encode($progress_data['values']); ?>,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: value => value + '%'
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
+<?php
+// ปิดการเชื่อมต่อ PDO
+$pdo = null;
+?>
