@@ -72,14 +72,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
         </ul>
     </div> -->
 
-    <div class="btn-group ms-2">
-        <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown">Export PDF</button>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="export_pdf.php?year=<?php echo $selectedYear; ?>&type=items">เฉพาะ Items</a></li>
-            <li><a class="dropdown-item" href="export_pdf.php?year=<?php echo $selectedYear; ?>&type=detail">เฉพาะ Detail</a></li>
-            <li><a class="dropdown-item" href="export_pdf.php?year=<?php echo $selectedYear; ?>&type=full">รวม Items + Detail</a></li>
-        </ul>
-    </div>
+   
 </form>
 
 
@@ -92,7 +85,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
 
     <!-- ตาราง budget_items -->
     <div class="card p-3 mb-4">
-        <h4>📋 รายการงบประมาณ</h4>
+        <h4>📋 รายการงบประมาณ</h4>  <button class="btn btn-info btn-sm" onclick="window.location.href='index.php'">รายละเอียดโครงการ</button>
         <table class="table table-bordered table-striped mt-3">
             <thead class="table-dark"><tr><th>หมวด</th><th>ขอ</th><th>อนุมัติ</th><th>%</th><th>รายละเอียด</th></tr></thead>
             <tbody>
@@ -102,9 +95,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
                     <td><?php echo number_format($row['requested_amount'], 2); ?></td>
                     <td><?php echo number_format($row['approved_amount'], 2); ?></td>
                     <td><?php echo $row['percentage']; ?>%</td>
-                    <td>
-                    <button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars($row['item_name'], ENT_QUOTES); ?>')">ดู</button>
-                    </td>
+                    <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $row['id']; ?>)">ดู</button></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -124,7 +115,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
     </div>
 </div>
 
-<!-- Modal สำหรับรายละเอียด 
+<!-- Modal สำหรับรายละเอียด -->
 <div class="modal fade" id="detailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -135,24 +126,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
             <div class="modal-body" id="detailContent">Loading...</div>
         </div>
     </div>
-</div> -->
-
-<!-- Modal สำหรับรายละเอียด -->
-<div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">รายละเอียดงบประมาณ</h5>
-                
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="detailContent">Loading...</div>
-            <div class="modal-footer" id="detailFooter"></div> <!-- เพิ่มตรงนี้ -->
-        </div>
-    </div>
 </div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -191,29 +165,14 @@ new Chart(document.getElementById('pieChart'), {
 });
 
 // ✅ โหลดรายละเอียดผ่าน AJAX
-function loadDetail(itemId, itemName){
+function loadDetail(itemId){
     fetch('load_detail.php?id='+itemId)
         .then(res => res.text())
         .then(html => {
-            // สร้างปุ่ม export ด้านบนเนื้อหา
-            const exportBtns = `
-                <div class="mb-3 text-end">
-                    <a href="export_pdf.php?budget_item_id=${itemId}&type=detail&mode=preview" target="_blank" class="btn btn-primary">
-                        Preview PDF (ทั้งโครงการ)
-                    </a>
-                    <a href="export_pdf.php?budget_item_id=${itemId}&type=detail&mode=download" target="_blank" class="btn btn-danger">
-                        Download PDF (ทั้งโครงการ)
-                    </a>
-                </div>
-            `;
-            document.getElementById('detailContent').innerHTML = exportBtns + html;
-            document.getElementById('modalTitle').textContent = 'รายละเอียดงบประมาณโครงการ: ' + itemName;
-            document.getElementById('detailFooter').innerHTML = ""; // ไม่ต้องมีปุ่มใน footer
+            document.getElementById('detailContent').innerHTML = html;
             new bootstrap.Modal(document.getElementById('detailModal')).show();
         });
 }
-// ใน dashboard.php (หรือไฟล์ HTML หลัก)
-
 </script>
 </body>
 </html>
