@@ -3,7 +3,7 @@
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงปีทั้งหมดใน DB สำหรับ Dropdown
+// ดึงปีทั้งหมดใน DB สำหรับ Dropdown Test
 $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 
 // ปีที่เลือก (ถ้าไม่มีให้ใช้ปีล่าสุด)
