@@ -21,7 +21,6 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([':id_detail' => $id_detail]);
 $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
 // งบประมาณ
 $stmt = $pdo->prepare("SELECT * FROM budget_detail WHERE id_detail = :id_detail");
 $stmt->execute([':id_detail' => $id_detail]);
@@ -43,91 +42,269 @@ $contracts = $stmt;
 $stmt = $pdo->prepare("SELECT * FROM issues WHERE id_detail = :id_detail");
 $stmt->execute([':id_detail' => $id_detail]);
 $issues = $stmt;
-
 ?>
 
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>รายละเอียดโครงการ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายละเอียดโครงการ: <?= htmlspecialchars($project['detail_name']) ?></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 <style>
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f0f0f0; }
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2c3e50;
+        --success-color: #2ecc71;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+    }
+    
+    body {
+        font-family: 'Kanit', sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+    }
+    
+    .project-header {
+        background-color: var(--secondary-color);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 10px 10px;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: 500;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-completed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inprogress {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-pending {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .back-btn {
+        transition: all 0.3s ease;
+    }
+    
+    .back-btn:hover {
+        transform: translateX(-5px);
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            overflow-x: auto;
+        }
+    }
 </style>
 </head>
 <body>
 
-<h1>รายละเอียดโครงการ</h1>
+<!-- ส่วนหัวเว็บ -->
+<div class="project-header">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="bi bi-clipboard2-data"></i> รายละเอียดโครงการ</h1>
+                <h2 class="h4"><?= htmlspecialchars($project['detail_name']) ?></h2>
+            </div>
+            <a href="index.php" class="btn btn-light back-btn">
+                <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
+            </a>
+        </div>
+    </div>
+</div>
 
+<div class="container">
+    <!-- ข้อมูลหลักโครงการ -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-info-circle"></i> ข้อมูลหลักโครงการ</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-tag"></i> ชื่อโครงการ:</strong> <?= htmlspecialchars($project['detail_name']) ?></p>
+                    <p><strong><i class="bi bi-grid"></i> ประเภท:</strong> <?= htmlspecialchars($project['item_name']) ?></p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-calendar"></i> ปีงบประมาณ:</strong> <?= htmlspecialchars($project['fiscal_year']) ?></p>
+                    <p><strong><i class="bi bi-journal-text"></i> รายละเอียด:</strong></p>
+                    <div class="bg-light p-3 rounded"><?= nl2br(htmlspecialchars($project['description'])) ?></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- ข้อมูลงบประมาณ -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h3 class="mb-0"><i class="bi bi-cash-stack"></i> ข้อมูลงบประมาณ</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-currency-exchange"></i> งบที่ได้รับ</th>
+                            <th><i class="bi bi-file-earmark-check"></i> งบที่ทำสัญญา</th>
+                            <th><i class="bi bi-calendar-event"></i> ปีงบประมาณ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($row = $budgets->fetch(PDO::FETCH_ASSOC)): ?>
+                        <tr>
+                            <td class="text-success fw-bold"><?= number_format($row['requested_amount'], 2) ?> บาท</td>
+                            <td class="text-primary fw-bold"><?= number_format($row['approved_amount'], 2) ?> บาท</td>
+                            <td><?= htmlspecialchars($row['fiscal_year']) ?></td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<h2>ข้อมูลหลัก</h2>
-<p><strong>ชื่อโครงการ:</strong> <?= htmlspecialchars($project['detail_name']) ?></p>
-<p><strong>ประเภท:</strong> <?= htmlspecialchars($project['item_name']) ?></p>
-<p><strong>ปีงบประมาณ:</strong> <?= htmlspecialchars($project['fiscal_year']) ?></p>
-<p><strong>รายละเอียด:</strong> <?= nl2br(htmlspecialchars($project['description'])) ?></p>
+    <!-- สัญญาและงวดงาน -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0"><i class="bi bi-file-earmark-text"></i> สัญญาและงวดงาน</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-file-earmark"></i> เลขที่สัญญา</th>
+                            <th><i class="bi bi-building"></i> ผู้รับจ้าง</th>
+                            <th><i class="bi bi-list-check"></i> งวดงาน</th>
+                            <th><i class="bi bi-calendar-plus"></i> วันที่เริ่ม</th>
+                            <th><i class="bi bi-calendar-check"></i> วันที่เสร็จสิ้น</th>
+                            <th><i class="bi bi-cash"></i> จำนวนเงิน</th>
+                            <th><i class="bi bi-info-circle"></i> สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($row = $contracts->fetch(PDO::FETCH_ASSOC)): 
+                            $statusClass = '';
+                            if($row['status'] == 'เสร็จสิ้น') $statusClass = 'status-completed';
+                            elseif($row['status'] == 'กำลังดำเนินการ') $statusClass = 'status-inprogress';
+                            else $statusClass = 'status-pending';
+                        ?>
+                        <tr>
+                            <td><span class="badge bg-secondary"><?= htmlspecialchars($row['contract_number']) ?></span></td>
+                            <td><?= htmlspecialchars($row['contractor_name']) ?></td>
+                            <td><?= htmlspecialchars($row['phase_name']) ?></td>
+                            <td><?= htmlspecialchars($row['due_date']) ?></td>
+                            <td><?= htmlspecialchars($row['completion_date']) ?></td>
+                            <td class="fw-bold"><?= number_format($row['amount'], 2) ?> บาท</td>
+                            <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<h2>งบประมาณ</h2>
-<table>
-<tr>
-    <th>งบที่ได้รับ</th>
-    <th>งบที่ทำสัญญา</th>
-    <th>ปีงบ</th>
-</tr>
-    <?php while($row = $budgets->fetch(PDO::FETCH_ASSOC)): ?>
-<tr>
-    <td><?= number_format($row['requested_amount'], 2) ?></td>
-    <td><?= number_format($row['approved_amount'], 2) ?></td>
-    <td><?= htmlspecialchars($row['fiscal_year']) ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
+    <!-- ปัญหาและอุปสรรค -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h3 class="mb-0"><i class="bi bi-exclamation-triangle"></i> ปัญหาและอุปสรรค</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-calendar-date"></i> วันที่พบปัญหา</th>
+                            <th><i class="bi bi-chat-left-text"></i> รายละเอียด</th>
+                            <th><i class="bi bi-lightbulb"></i> การแก้ไข</th>
+                            <th><i class="bi bi-info-circle"></i> สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($row = $issues->fetch(PDO::FETCH_ASSOC)): 
+                            $statusClass = '';
+                            if($row['status'] == 'แก้ไขแล้ว') $statusClass = 'status-completed';
+                            elseif($row['status'] == 'กำลังแก้ไข') $statusClass = 'status-inprogress';
+                            else $statusClass = 'status-pending';
+                        ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['issue_date']) ?></td>
+                            <td><?= htmlspecialchars($row['description']) ?></td>
+                            <td><?= $row['solution'] ? htmlspecialchars($row['solution']) : '-' ?></td>
+                            <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<h2>สัญญาและงวดงาน</h2>
-<table>
-<tr>
-    <th>เลขที่สัญญา</th>
-    <th>ผู้รับจ้าง</th>
-    <th>งวดงาน</th>
-    <th>วันที่เริ่ม</th>
-    <th>วันที่เสร็จสิน</th>
-    <th>จำนวนเงิน</th>
-    <th>สถานะ</th>
-</tr>
-<?php while($row = $contracts->fetch(PDO::FETCH_ASSOC)): ?>
-<tr>
-    <td><?= htmlspecialchars($row['contract_number']) ?></td>
-    <td><?= htmlspecialchars($row['contractor_name']) ?></td>
-    <td><?= htmlspecialchars($row['phase_name']) ?></td>
-    <td><?= htmlspecialchars($row['due_date']) ?></td>
-    <td><?= htmlspecialchars($row['completion_date']) ?></td>
-    <td><?= number_format($row['amount'], 2) ?></td>
-    <td><?= htmlspecialchars($row['status']) ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
+    <!-- ปุ่มกลับ -->
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
+        <a href="index.php" class="btn btn-primary">
+            <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
+        </a>
+    </div>
+</div>
 
-<h2>ปัญหาและอุปสรรค</h2>
-<table>
-<tr>
-    <th>วันที่พบปัญหา</th>
-    <th>รายละเอียด</th>
-    <th>ปัญหาอุปสรรค </th>
-    <th>สถานะ</th>
-</tr>
-<?php while($row = $issues->fetch(PDO::FETCH_ASSOC)): ?>
-<tr>
-    <td><?= htmlspecialchars($row['issue_date']) ?></td>
-    <td><?= htmlspecialchars($row['description']) ?></td> 
-    <td><?= htmlspecialchars($row['solution']) ?></td> 
-    <td><?= htmlspecialchars($row['status']) ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
-
-<p><a href="dashboard.php">⬅ กลับหน้าหลัก</a></p>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// เพิ่มเอฟเฟกต์เมื่อโหลดหน้าเว็บ
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
 </body>
 </html>

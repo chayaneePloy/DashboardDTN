@@ -3,212 +3,176 @@
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงข้อมูลขั้นตอนโครงการ
-$steps_stmt = $pdo->query("
-    SELECT step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed
-    FROM project_steps
-    ORDER BY step_order
-");
+// ดึงปีทั้งหมดใน DB สำหรับ Dropdown Test
+$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 
-// ดึงข้อมูลความคืบหน้า
-$progress_stmt = $pdo->query("
-    SELECT ps.step_name, pp.progress_percent 
-    FROM project_progress pp
-    JOIN project_steps ps ON pp.step_id = ps.id
-    ORDER BY ps.step_order
-");
+// ปีที่เลือก (ถ้าไม่มีให้ใช้ปีล่าสุด)
+$selectedYear = isset($_GET['year']) ? intval($_GET['year']) : max($years);
 
-$progress_data = [
-    'labels' => [],
-    'values' => []
-];
+// ดึงข้อมูล budget_items ของปีที่เลือก
+$stmt = $pdo->prepare("SELECT * FROM budget_items WHERE fiscal_year = ? ORDER BY id ASC");
+$stmt->execute([$selectedYear]);
+$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-while ($row = $progress_stmt->fetch(PDO::FETCH_ASSOC)) {
-    $progress_data['labels'][] = $row['step_name'];
-    $progress_data['values'][] = $row['progress_percent'];
-}
+// ข้อมูลสำหรับกราฟ
+$itemNames = json_encode(array_column($items, 'item_name'));
+$requested = json_encode(array_column($items, 'requested_amount'));
+$approved = json_encode(array_column($items, 'approved_amount'));
+$percentage = json_encode(array_column($items, 'percentage'));
 
-// ฟังก์ชันแปลงวันที่ไทย
-function thai_date($date) {
-    if (!$date) return '';
-    $months = [
-        "", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
-    ];
-    $ts = strtotime($date);
-    return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts) + 543);
-}
+// คำนวณสรุป
+$totalRequested = array_sum(array_column($items, 'requested_amount'));
+$totalApproved = array_sum(array_column($items, 'approved_amount'));
+$avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')) / count($items), 2) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบติดตามขั้นตอนโครงการ</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Dashboard งบประมาณ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Kanit', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .process-timeline {
-            position: relative;
-            padding-left: 50px;
-            margin: 30px 0;
-        }
-        .process-timeline::before {
-            content: '';
-            position: absolute;
-            left: 20px;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: #dee2e6;
-        }
-        .process-step {
-            position: relative;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .process-step.completed {
-            border-left: 4px solid #28a745;
-        }
-        .step-number {
-            position: absolute;
-            left: -40px;
-            top: 0;
-            width: 40px;
-            height: 40px;
-            background: #3498db;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        .step-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .step-header h3 {
-            margin: 0;
-            flex-grow: 1;
-            color: #2c3e50;
-        }
-        .step-date {
-            background: #f1c40f;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.9em;
-        }
-        .sub-steps {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        .progress-chart {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .navbar {
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        footer {
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }
+        body { background: #f8f9fa; }
+        .card { border-radius: 15px; }
+        .chart-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .chart-box { background: #fff; padding: 15px; border-radius: 15px; flex: 1; }
+        .modal-lg { max-width: 90% !important; }
+        
+        
     </style>
-    </head>
+    
+    
+</head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="#">ระบบติดตามขั้นตอนโครงการ</a>
-        </div>
-    </nav>
+<div class="container my-4">
+    <h2 class="text-center mb-4">📊 Dashboard งบประมาณ (ปี <?php echo $selectedYear; ?>)</h2>
 
-    <div class="container my-4">
-        <h1 class="text-center mb-4">ขั้นตอนการดำเนินโครงการ</h1>
-        
-        <!-- Timeline -->
-        <div class="process-timeline">
-            <?php while($step = $steps_stmt->fetch(PDO::FETCH_ASSOC)): ?>
-            <div class="process-step <?php echo $step['is_completed'] ? 'completed' : ''; ?>">
-                <div class="step-number"><?php echo $step['step_order']; ?></div>
-                <div class="step-header">
-                    <h3><?php echo $step['step_name']; ?></h3>
-                    <span class="step-date"><?php echo thai_date($step['step_date']); ?></span>
-                </div>
-                <div class="step-content">
-                    <p><?php echo $step['step_description']; ?></p>
-                    <?php if(!empty($step['sub_steps'])): ?>
-                        <div class="sub-steps">
-                            <h4>ขั้นตอนย่อย:</h4>
-                            <p><?php echo nl2br($step['sub_steps']); ?></p>
-                        </div>
-                    <?php endif; ?>
-                    <?php if(!empty($step['document_path'])): ?>
-                        <div class="step-documents">
-                            <a href="documents/<?php echo $step['document_path']; ?>" class="btn btn-sm btn-outline-primary">ดูเอกสาร</a>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php endwhile; ?>
-        </div>
-        
-        <!-- Chart -->
-        <div class="progress-chart mt-5">
-            <h2 class="text-center mb-4">ความคืบหน้าโครงการ</h2>
-            <canvas id="progressChart" height="100"></canvas>
-        </div>
+    <!-- Filter ปี -->
+   <form method="GET" class="mb-3 text-center">
+    <label for="year">เลือกปี:</label>
+    <select name="year" onchange="this.form.submit()" class="form-select w-auto d-inline-block">
+        <?php foreach($years as $year): ?>
+            <option value="<?php echo $year; ?>" <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
+                <?php echo $year; ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+
+    <!-- ปุ่ม Export -->
+    <!-- <div class="btn-group ms-2">
+        <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">Export Excel</button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=items">เฉพาะ Items</a></li>
+            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=detail">เฉพาะ Detail</a></li>
+            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=full">รวม Items + Detail</a></li>
+        </ul>
+    </div> -->
+
+   
+</form>
+
+
+    <!-- Summary Cards -->
+    <div class="row text-center mb-4">
+        <div class="col-md-4"><div class="card p-3 bg-primary text-white"><h4>รวมวงเงินที่ขอ</h4><h2><?php echo number_format($totalRequested, 2); ?> บาท</h2></div></div>
+        <div class="col-md-4"><div class="card p-3 bg-success text-white"><h4>รวมวงเงินที่อนุมัติ</h4><h2><?php echo number_format($totalApproved, 2); ?> บาท</h2></div></div>
+        <div class="col-md-4"><div class="card p-3 bg-warning text-white"><h4>ค่าเฉลี่ยร้อยละ</h4><h2><?php echo $avgPercent; ?>%</h2></div></div>
     </div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-5">
-        <p>&copy; <?php echo date('Y')+543; ?> ระบบติดตามขั้นตอนโครงการ</p>
-    </footer>
+    <!-- ตาราง budget_items -->
+    <div class="card p-3 mb-4">
+        <h4>📋 รายการงบประมาณ</h4>  <button class="btn btn-info btn-sm" onclick="window.location.href='index.php'">รายละเอียดโครงการ</button>
+        <table class="table table-bordered table-striped mt-3">
+            <thead class="table-dark"><tr><th>หมวด</th><th>ขอ</th><th>อนุมัติ</th><th>%</th><th>รายละเอียด</th></tr></thead>
+            <tbody>
+            <?php foreach($items as $row): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+                    <td><?php echo number_format($row['requested_amount'], 2); ?></td>
+                    <td><?php echo number_format($row['approved_amount'], 2); ?></td>
+                    <td><?php echo $row['percentage']; ?>%</td>
+                    <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $row['id']; ?>)">ดู</button></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('progressChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: <?php echo json_encode($progress_data['labels']); ?>,
-                    datasets: [{
-                        label: 'ความคืบหน้า (%)',
-                        data: <?php echo json_encode($progress_data['values']); ?>,
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: value => value + '%'
-                            }
-                        }
-                    }
-                }
-            });
+    <!-- กราฟ -->
+    <div class="chart-container">
+        <div class="chart-box" style="flex: 2;">
+            <h5 class="text-center">งบประมาณ (Bar + Line)</h5>
+            <canvas id="budgetChart"></canvas>
+        </div>
+        <div class="chart-box" style="flex: 1;">
+            <h5 class="text-center">สัดส่วน (%)</h5>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับรายละเอียด -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">รายละเอียดงบประมาณ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailContent">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const labels = <?php echo $itemNames; ?>;
+const requested = <?php echo $requested; ?>;
+const approved = <?php echo $approved; ?>;
+const percentage = <?php echo $percentage; ?>;
+
+// ✅ Bar + Line Chart
+new Chart(document.getElementById('budgetChart'), {
+    type: 'bar',
+    data: {
+        labels: labels,
+        datasets: [
+            { label: 'ขอ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
+            { label: 'อนุมัติ', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
+            { label: '%', data: percentage, type: 'line', borderColor: '#FFA726', yAxisID: 'y1' }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'บาท' } },
+            y1: { beginAtZero: true, position: 'right', title: { display: true, text: '%' } }
+        }
+    }
+});
+
+// ✅ Pie Chart
+new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+        labels: labels,
+        datasets: [{ data: percentage, backgroundColor: ['#42A5F5','#66BB6A','#FFA726','#AB47BC','#26C6DA'] }]
+    }
+});
+
+// ✅ โหลดรายละเอียดผ่าน AJAX
+function loadDetail(itemId){
+    fetch('load_detail.php?id='+itemId)
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('detailContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('detailModal')).show();
         });
-    </script>
+}
+</script>
 </body>
 </html>
-<?php
-// ปิดการเชื่อมต่อ PDO
-$pdo = null;
-?>
