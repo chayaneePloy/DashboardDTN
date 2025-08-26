@@ -265,8 +265,9 @@ $issues = $stmt;
                             <td><?= htmlspecialchars($row['contract_number']) ?></td>
                             <td><?= htmlspecialchars($row['contractor_name']) ?></td>
                             <td><?= htmlspecialchars($row['phase_name']) ?></td>
-                            <td><?= htmlspecialchars($row['due_date']) ?></td>
-                            <td><?= htmlspecialchars($row['completion_date']) ?></td>
+                            <td><?= !empty($row['due_date']) ? date("d-m-Y", strtotime($row['due_date'])) : "-" ?></td>
+                            <td><?= !empty($row['completion_date']) ? date("d-m-Y", strtotime($row['completion_date'])) : "-" ?></td>
+
                             <td><?= number_format($row['amount'], 2) ?> บาท</td>
                             <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
                         </tr>
@@ -298,7 +299,8 @@ $issues = $stmt;
                             $statusClass = ($row['status'] == 'แก้ไขแล้ว') ? 'status-completed' : (($row['status'] == 'กำลังแก้ไข') ? 'status-inprogress' : 'status-pending');
                         ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['issue_date']) ?></td>
+                            
+                            <td><?= !empty($row['issue_date']) ? date("d-m-Y", strtotime($row['issue_date'])) : "-" ?></td>
                             <td><?= htmlspecialchars($row['description']) ?></td>
                             <td><?= $row['solution'] ? htmlspecialchars($row['solution']) : '-' ?></td>
                             <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
