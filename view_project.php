@@ -158,9 +158,19 @@ $issues = $stmt;
                 <h1><i class="bi bi-clipboard2-data"></i> รายละเอียดโครงการ</h1>
                 <h2 class="h4"><?= htmlspecialchars($project['detail_name']) ?></h2>
             </div>
+
+                <div class="btn-group" role="group">
+            <!-- ปุ่มกลับหน้าหลัก -->
             <a href="index.php" class="btn btn-light back-btn">
-                <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
+                <i class="bi bi-house"></i> หน้าหลัก
             </a>
+
+            <!-- ปุ่มกลับหน้าก่อนหน้า -->
+            <a href="javascript:history.back()" class="btn btn-light back-btn">
+                <i class="bi bi-arrow-left"></i> กลับหน้าก่อนหน้า
+            </a>
+            </div>
+
         </div>
     </div>
 </div>
@@ -168,13 +178,16 @@ $issues = $stmt;
 <div class="container">
     <!-- ปุ่มดูขั้นตอน Timeline -->
     <?php if(!empty($steps)): ?>
+         
         <a href="index3.php?id_detail=<?= $steps[0]['id_butget_detail'] ?>" 
            class="btn btn-sm btn-primary mb-3">
-           <i class="bi bi-diagram-3"></i> ดูขั้นตอน (Timeline)
+           <h4><i class="bi bi-diagram-3"></i> ดูขั้นตอน (Timeline) </h4>
         </a>
+      
     <?php else: ?>
-        <span class="text-muted mb-3 d-block">ยังไม่มีขั้นตอนโครงการ</span>
+        <span class="text-muted mb-3 d-block"> <h4>ยังไม่มีขั้นตอนโครงการ</h4> </span>
     <?php endif; ?>
+    
 
     <!-- ข้อมูลหลักโครงการ -->
     <div class="card mb-4">
@@ -298,9 +311,17 @@ $issues = $stmt;
     </div>
 
     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
-        <a href="index.php" class="btn btn-primary">
-            <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
-        </a>
+        <div class="btn-group" role="group">
+            <!-- ปุ่มกลับหน้าหลัก -->
+            <a href="index.php" class="btn btn-dark back-btn">
+                <i class="bi bi-house"></i> หน้าหลัก
+            </a>
+
+            <!-- ปุ่มกลับหน้าก่อนหน้า -->
+            <a href="javascript:history.back()" class="btn btn-dark back-btn">
+                <i class="bi bi-arrow-left"></i> กลับหน้าก่อนหน้า
+            </a>
+            </div>
     </div>
 </div>
 
