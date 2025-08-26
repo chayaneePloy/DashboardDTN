@@ -3,26 +3,35 @@
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงข้อมูลขั้นตอนโครงการ
-$steps_stmt = $pdo->query("
-    SELECT step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed
+$id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
+
+// ดึงชื่อโครงการจาก budget_detail
+$stmtDetail = $pdo->prepare("SELECT detail_name FROM budget_detail WHERE id_detail = :id_detail");
+$stmtDetail->execute([':id_detail' => $id_detail]);
+$project_detail = $stmtDetail->fetch(PDO::FETCH_ASSOC);
+$detail_name = $project_detail ? $project_detail['detail_name'] : '-';
+
+// ดึงข้อมูลขั้นตอนโครงการ พร้อม id_butget_detail
+$steps_stmt = $pdo->prepare("
+    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_butget_detail
     FROM project_steps
+    WHERE id_butget_detail = :id_detail
     ORDER BY step_order
 ");
+$steps_stmt->execute([':id_detail' => $id_detail]);
+$steps = $steps_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ดึงข้อมูลความคืบหน้า
-$progress_stmt = $pdo->query("
+$progress_stmt = $pdo->prepare("
     SELECT ps.step_name, pp.progress_percent 
     FROM project_progress pp
     JOIN project_steps ps ON pp.step_id = ps.id
+    WHERE ps.id_butget_detail = :id_detail
     ORDER BY ps.step_order
 ");
+$progress_stmt->execute([':id_detail' => $id_detail]);
 
-$progress_data = [
-    'labels' => [],
-    'values' => []
-];
-
+$progress_data = ['labels' => [], 'values' => []];
 while ($row = $progress_stmt->fetch(PDO::FETCH_ASSOC)) {
     $progress_data['labels'][] = $row['step_name'];
     $progress_data['values'][] = $row['progress_percent'];
@@ -31,10 +40,8 @@ while ($row = $progress_stmt->fetch(PDO::FETCH_ASSOC)) {
 // ฟังก์ชันแปลงวันที่ไทย
 function thai_date($date) {
     if (!$date) return '';
-    $months = [
-        "", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
-    ];
+    $months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+               "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     $ts = strtotime($date);
     return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts) + 543);
 }
@@ -127,88 +134,80 @@ function thai_date($date) {
             box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
     </style>
-    </head>
+</head>
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="#">ระบบติดตามขั้นตอนโครงการ</a>
-        </div>
-    </nav>
+    <div class="container">
+        <a class="navbar-brand" href="#">ระบบติดตามขั้นตอนโครงการ</a>
+    </div>
+</nav>
 
-    <div class="container my-4">
-        <h1 class="text-center mb-4">ขั้นตอนการดำเนินโครงการ</h1>
-        
-        <!-- Timeline -->
-        <div class="process-timeline">
-            <?php while($step = $steps_stmt->fetch(PDO::FETCH_ASSOC)): ?>
-            <div class="process-step <?php echo $step['is_completed'] ? 'completed' : ''; ?>">
-                <div class="step-number"><?php echo $step['step_order']; ?></div>
-                <div class="step-header">
-                    <h3><?php echo $step['step_name']; ?></h3>
-                    <span class="step-date"><?php echo thai_date($step['step_date']); ?></span>
-                </div>
-                <div class="step-content">
-                    <p><?php echo $step['step_description']; ?></p>
-                    <?php if(!empty($step['sub_steps'])): ?>
-                        <div class="sub-steps">
-                            <h4>ขั้นตอนย่อย:</h4>
-                            <p><?php echo nl2br($step['sub_steps']); ?></p>
-                        </div>
-                    <?php endif; ?>
-                    <?php if(!empty($step['document_path'])): ?>
-                        <div class="step-documents">
-                            <a href="documents/<?php echo $step['document_path']; ?>" class="btn btn-sm btn-outline-primary">ดูเอกสาร</a>
-                        </div>
-                    <?php endif; ?>
-                </div>
+<div class="container my-4">
+    <h1 class="text-center mb-2">ขั้นตอนการดำเนินโครงการ</h1>
+    <h3 class="text-center mb-4 text-secondary"><?= htmlspecialchars($detail_name) ?></h3>
+
+    <!-- Timeline -->
+    <div class="process-timeline">
+        <?php foreach($steps as $step): ?>
+        <div class="process-step <?= $step['is_completed'] ? 'completed' : '' ?>">
+            <div class="step-number"><?= $step['step_order'] ?></div>
+            <div class="step-header">
+                <h3><?= $step['step_name'] ?></h3>
+                <span class="step-date"><?= thai_date($step['step_date']) ?></span>
             </div>
-            <?php endwhile; ?>
+            <div class="step-content">
+                <p><?= $step['step_description'] ?></p>
+                <?php if(!empty($step['sub_steps'])): ?>
+                    <div class="sub-steps">
+                        <h4>ขั้นตอนย่อย:</h4>
+                        <p><?= nl2br($step['sub_steps']) ?></p>
+                    </div>
+                <?php endif; ?>
+                <?php if(!empty($step['document_path'])): ?>
+                    <div class="step-documents">
+                        <a href="documents/<?= $step['document_path'] ?>" class="btn btn-sm btn-outline-primary">ดูเอกสาร</a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
-        
-        <!-- Chart -->
-        <div class="progress-chart mt-5">
-            <h2 class="text-center mb-4">ความคืบหน้าโครงการ</h2>
-            <canvas id="progressChart" height="100"></canvas>
-        </div>
+        <?php endforeach; ?>
     </div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-5">
-        <p>&copy; <?php echo date('Y')+543; ?> ระบบติดตามขั้นตอนโครงการ</p>
-    </footer>
+    <!-- Chart -->
+    <div class="progress-chart mt-5">
+        <h2 class="text-center mb-4">ความคืบหน้าโครงการ</h2>
+        <canvas id="progressChart" height="100"></canvas>
+    </div>
+</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('progressChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: <?php echo json_encode($progress_data['labels']); ?>,
-                    datasets: [{
-                        label: 'ความคืบหน้า (%)',
-                        data: <?php echo json_encode($progress_data['values']); ?>,
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: value => value + '%'
-                            }
-                        }
-                    }
-                }
-            });
-        });
-    </script>
+<footer class="bg-dark text-white text-center py-3 mt-5">
+    <p>&copy; <?= date('Y')+543 ?> ระบบติดตามขั้นตอนโครงการ</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($progress_data['labels']) ?>,
+            datasets: [{
+                label: 'ความคืบหน้า (%)',
+                data: <?= json_encode($progress_data['values']) ?>,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: value => value + '%' } }
+            }
+        }
+    });
+});
+</script>
 </body>
 </html>
-<?php
-// ปิดการเชื่อมต่อ PDO
-$pdo = null;
-?>
+<?php $pdo = null; ?>

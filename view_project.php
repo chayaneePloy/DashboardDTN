@@ -2,13 +2,11 @@
 include 'db.php'; // เชื่อมต่อฐานข้อมูล
 
 $id_detail = intval($_GET['id_detail']);
-$id_detail = intval($id_detail);
 
 // ดึงชื่อโครงการ
 $stmtProject = $pdo->prepare("SELECT item_name FROM budget_items WHERE id = ?");
 $stmtProject->execute([$id_detail]);
-$project = $stmtProject->fetch(PDO::FETCH_ASSOC);
-$projectName = $project ? $project['item_name'] : '-';
+$projectName = $stmtProject->fetchColumn() ?: '-';
 
 // ข้อมูลโครงการ
 $sql = "
@@ -20,6 +18,16 @@ $sql = "
 $stmt = $pdo->prepare($sql); 
 $stmt->execute([':id_detail' => $id_detail]);
 $project = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// ดึงขั้นตอน project_steps ของโครงการนี้
+$steps_stmt = $pdo->prepare("
+    SELECT id, step_name, step_order, id_butget_detail
+    FROM project_steps
+    WHERE id_butget_detail = :id_detail
+    ORDER BY step_order
+");
+$steps_stmt->execute([':id_detail' => $id_detail]);
+$steps = $steps_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // งบประมาณ
 $stmt = $pdo->prepare("SELECT * FROM budget_detail WHERE id_detail = :id_detail");
@@ -158,6 +166,16 @@ $issues = $stmt;
 </div>
 
 <div class="container">
+    <!-- ปุ่มดูขั้นตอน Timeline -->
+    <?php if(!empty($steps)): ?>
+        <a href="index3.php?id_detail=<?= $steps[0]['id_butget_detail'] ?>" 
+           class="btn btn-sm btn-primary mb-3">
+           <i class="bi bi-diagram-3"></i> ดูขั้นตอน (Timeline)
+        </a>
+    <?php else: ?>
+        <span class="text-muted mb-3 d-block">ยังไม่มีขั้นตอนโครงการ</span>
+    <?php endif; ?>
+
     <!-- ข้อมูลหลักโครงการ -->
     <div class="card mb-4">
         <div class="card-header">
@@ -188,9 +206,9 @@ $issues = $stmt;
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th><i class="bi bi-currency-exchange"></i> งบที่ได้รับ</th>
-                            <th><i class="bi bi-file-earmark-check"></i> งบที่ทำสัญญา</th>
-                            <th><i class="bi bi-calendar-event"></i> ปีงบประมาณ</th>
+                            <th>งบที่ได้รับ</th>
+                            <th>งบที่ทำสัญญา</th>
+                            <th>ปีงบประมาณ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -217,29 +235,26 @@ $issues = $stmt;
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th><i class="bi bi-file-earmark"></i> เลขที่สัญญา</th>
-                            <th><i class="bi bi-building"></i> ผู้รับจ้าง</th>
-                            <th><i class="bi bi-list-check"></i> งวดงาน</th>
-                            <th><i class="bi bi-calendar-plus"></i> วันที่เริ่ม</th>
-                            <th><i class="bi bi-calendar-check"></i> วันที่เสร็จสิ้น</th>
-                            <th><i class="bi bi-cash"></i> จำนวนเงิน</th>
-                            <th><i class="bi bi-info-circle"></i> สถานะ</th>
+                            <th>เลขที่สัญญา</th>
+                            <th>ผู้รับจ้าง</th>
+                            <th>งวดงาน</th>
+                            <th>วันที่เริ่ม</th>
+                            <th>วันที่เสร็จสิ้น</th>
+                            <th>จำนวนเงิน</th>
+                            <th>สถานะ</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php while($row = $contracts->fetch(PDO::FETCH_ASSOC)): 
-                            $statusClass = '';
-                            if($row['status'] == 'เสร็จสิ้น') $statusClass = 'status-completed';
-                            elseif($row['status'] == 'กำลังดำเนินการ') $statusClass = 'status-inprogress';
-                            else $statusClass = 'status-pending';
+                            $statusClass = ($row['status'] == 'เสร็จสิ้น') ? 'status-completed' : (($row['status'] == 'กำลังดำเนินการ') ? 'status-inprogress' : 'status-pending');
                         ?>
                         <tr>
-                            <td><span class="badge bg-secondary"><?= htmlspecialchars($row['contract_number']) ?></span></td>
+                            <td><?= htmlspecialchars($row['contract_number']) ?></td>
                             <td><?= htmlspecialchars($row['contractor_name']) ?></td>
                             <td><?= htmlspecialchars($row['phase_name']) ?></td>
                             <td><?= htmlspecialchars($row['due_date']) ?></td>
                             <td><?= htmlspecialchars($row['completion_date']) ?></td>
-                            <td class="fw-bold"><?= number_format($row['amount'], 2) ?> บาท</td>
+                            <td><?= number_format($row['amount'], 2) ?> บาท</td>
                             <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
                         </tr>
                         <?php endwhile; ?>
@@ -259,18 +274,15 @@ $issues = $stmt;
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th><i class="bi bi-calendar-date"></i> วันที่พบปัญหา</th>
-                            <th><i class="bi bi-chat-left-text"></i> รายละเอียด</th>
-                            <th><i class="bi bi-lightbulb"></i> การแก้ไข</th>
-                            <th><i class="bi bi-info-circle"></i> สถานะ</th>
+                            <th>วันที่พบปัญหา</th>
+                            <th>รายละเอียด</th>
+                            <th>การแก้ไข</th>
+                            <th>สถานะ</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while($row = $issues->fetch(PDO::FETCH_ASSOC)): 
-                            $statusClass = '';
-                            if($row['status'] == 'แก้ไขแล้ว') $statusClass = 'status-completed';
-                            elseif($row['status'] == 'กำลังแก้ไข') $statusClass = 'status-inprogress';
-                            else $statusClass = 'status-pending';
+                        <?php while($row = $issues->fetch(PDO::FETCH_ASSOC)):
+                            $statusClass = ($row['status'] == 'แก้ไขแล้ว') ? 'status-completed' : (($row['status'] == 'กำลังแก้ไข') ? 'status-inprogress' : 'status-pending');
                         ?>
                         <tr>
                             <td><?= htmlspecialchars($row['issue_date']) ?></td>
@@ -285,7 +297,6 @@ $issues = $stmt;
         </div>
     </div>
 
-    <!-- ปุ่มกลับ -->
     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
         <a href="index.php" class="btn btn-primary">
             <i class="bi bi-arrow-left"></i> กลับหน้าหลัก

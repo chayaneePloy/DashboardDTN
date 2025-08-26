@@ -49,7 +49,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
 </head>
 <body>
 <div class="container my-4">
-    <h2 class="text-center mb-4">📊 Dashboard งบประมาณ (ปี <?php echo $selectedYear; ?>)</h2>
+    <h2 class="text-center mb-4">📊 Dashboard งบประมาณงบประมาณโครงการ IT (ปี <?php echo $selectedYear; ?>)</h2>
 
     <!-- Filter ปี -->
    <form method="GET" class="mb-3 text-center">
@@ -78,22 +78,29 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
 
     <!-- Summary Cards -->
     <div class="row text-center mb-4">
-        <div class="col-md-4"><div class="card p-3 bg-primary text-white"><h4>รวมวงเงินที่ขอ</h4><h2><?php echo number_format($totalRequested, 2); ?> บาท</h2></div></div>
-        <div class="col-md-4"><div class="card p-3 bg-success text-white"><h4>รวมวงเงินที่อนุมัติ</h4><h2><?php echo number_format($totalApproved, 2); ?> บาท</h2></div></div>
-        <div class="col-md-4"><div class="card p-3 bg-warning text-white"><h4>ค่าเฉลี่ยร้อยละ</h4><h2><?php echo $avgPercent; ?>%</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-primary text-white"><h4>งบประมาณทั้งหมด</h4><h2><?php echo number_format($totalRequested, 2); ?> บาท</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-success text-white"><h4>ใช้จ่ายแล้วทั้งหมด</h4><h2><?php echo number_format($totalApproved, 2); ?> บาท</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-info text-white"><h4>งบประมาณคงเหลือทั้งหมด</h4><h2><?php echo number_format($totalRequested - $totalApproved, 2); ?></h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-warning text-white"><h4>% ใช้จ่ายจริง</h4><h2>
+            <?php 
+                $percentUsed = $totalRequested > 0 ? ($totalApproved / $totalRequested) * 100 : 0;
+                echo number_format($percentUsed, 2);
+            ?>%
+        </h2></div></div>
     </div>
 
     <!-- ตาราง budget_items -->
     <div class="card p-3 mb-4">
-        <h4>📋 รายการงบประมาณ</h4>  <button class="btn btn-info btn-sm" onclick="window.location.href='index.php'">รายละเอียดโครงการ</button>
+        <h4>📋 รายการงบประมาณ</h4>  
         <table class="table table-bordered table-striped mt-3">
-            <thead class="table-dark"><tr><th>หมวด</th><th>ขอ</th><th>อนุมัติ</th><th>%</th><th>รายละเอียด</th></tr></thead>
+            <thead class="table-dark"><tr><th>ประเภท</th><th>งบประมาณ</th><th>ใช้จ่ายแล้ว</th><th>คงเหลือ</th><th>% ใช้จ่าย</th><th>รายละเอียด</th></tr></thead>
             <tbody>
             <?php foreach($items as $row): ?>
                 <tr>
                     <td><?php echo htmlspecialchars($row['item_name']); ?></td>
                     <td><?php echo number_format($row['requested_amount'], 2); ?></td>
                     <td><?php echo number_format($row['approved_amount'], 2); ?></td>
+                    <td><?php echo number_format($row['requested_amount'] - $row['approved_amount'], 2); ?> </td>
                     <td><?php echo $row['percentage']; ?>%</td>
                     <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $row['id']; ?>)">ดู</button></td>
                 </tr>
@@ -105,11 +112,11 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
     <!-- กราฟ -->
     <div class="chart-container">
         <div class="chart-box" style="flex: 2;">
-            <h5 class="text-center">งบประมาณ (Bar + Line)</h5>
+            <h5 class="text-center">งบประมาณเปรียบเทียบกับการใช้จ่ายจริง </h5>
             <canvas id="budgetChart"></canvas>
         </div>
         <div class="chart-box" style="flex: 1;">
-            <h5 class="text-center">สัดส่วน (%)</h5>
+            <h5 class="text-center">สัดส่วนงบประมาณตามประเภท (%)</h5>
             <canvas id="pieChart"></canvas>
         </div>
     </div>
@@ -141,8 +148,8 @@ new Chart(document.getElementById('budgetChart'), {
     data: {
         labels: labels,
         datasets: [
-            { label: 'ขอ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
-            { label: 'อนุมัติ', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
+            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
+            { label: 'ใช้จ่ายแล้ว', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
             { label: '%', data: percentage, type: 'line', borderColor: '#FFA726', yAxisID: 'y1' }
         ]
     },
