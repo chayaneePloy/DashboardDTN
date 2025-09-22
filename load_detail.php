@@ -72,7 +72,7 @@ $percentUsed = $totalRequested > 0 ? ($totalApproved / $totalRequested) * 100 : 
 // แสดงตาราง
 echo "<h6>🔎 รายการย่อย (Detail)</h6>";
 echo "<table class='table table-bordered table-striped'>
-        <thead class='table-dark'>
+        <thead class='table-secondary'>
             <tr>
                 <th>รายละเอียด</th>
                 <th>งบประมาณ</th>

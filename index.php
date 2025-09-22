@@ -41,13 +41,20 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
         .chart-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
         .chart-box { background: #fff; padding: 15px; border-radius: 15px; flex: 1; }
         .modal-lg { max-width: 90% !important; }
-        
-        
+
     </style>
     
     
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Dashboard</a>
+    <div class="d-flex">
+      <a href="login.php" class="btn btn-success btn-lg">Login</a>
+    </div>
+  </div>
+</nav>
 <div class="container my-4">
     <h2 class="text-center mb-4">📊 Dashboard งบประมาณงบประมาณโครงการ IT (ปี <?php echo $selectedYear; ?>)</h2>
 

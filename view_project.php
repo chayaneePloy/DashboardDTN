@@ -281,14 +281,14 @@ $issues = $stmt;
     <!-- ปัญหาและอุปสรรค -->
     <div class="card mb-4">
         <div class="card-header bg-warning text-dark">
-            <h3 class="mb-0"><i class="bi bi-exclamation-triangle"></i> ปัญหาและอุปสรรค</h3>
+            <h3 class="mb-0"><i class="bi bi-exclamation-triangle"></i> ผลการดำเนินงาน ปัญหาและอุปสรรค</h3>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th>วันที่พบปัญหา</th>
+                            <th>วันที่ดำเนินงาน</th>
                             <th>รายละเอียด</th>
                             <th>การแก้ไข</th>
                             <th>สถานะ</th>
@@ -304,6 +304,7 @@ $issues = $stmt;
                             <td><?= htmlspecialchars($row['description']) ?></td>
                             <td><?= $row['solution'] ? htmlspecialchars($row['solution']) : '-' ?></td>
                             <td><span class="status-badge <?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></span></td>
+                            
                         </tr>
                         <?php endwhile; ?>
                     </tbody>
