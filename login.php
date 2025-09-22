@@ -33,7 +33,7 @@ body { display:flex; justify-content:center; align-items:center; height:100vh; b
 </head>
 <body>
 <div class="login-box">
- <h2 class="text-center">Dashboard งบประมาณงบประมาณโครงการ IT </h2>   
+ <h2 class="text-center">Dashboard งบประมาณโครงการ IT </h2>   
 <h2 class="text-center mb-4">🔐 Login </h2>
 <?php if (!empty($error)) echo "<p class='error'>$error</p>"; ?>
 <form method="post">

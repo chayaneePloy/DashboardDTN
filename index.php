@@ -3,7 +3,7 @@
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงปีทั้งหมดใน DB สำหรับ Dropdown Test
+// ดึงปีทั้งหมดใน DB สำหรับ Dropdown
 $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 
 // ปีที่เลือก (ถ้าไม่มีให้ใช้ปีล่าสุด)
@@ -19,6 +19,9 @@ $itemNames = json_encode(array_column($items, 'item_name'));
 $requested = json_encode(array_column($items, 'requested_amount'));
 $approved = json_encode(array_column($items, 'approved_amount'));
 $percentage = json_encode(array_column($items, 'percentage'));
+$remaining = json_encode(array_map(function($row){
+    return $row['requested_amount'] - $row['approved_amount'];
+}, $items));
 
 // คำนวณสรุป
 $totalRequested = array_sum(array_column($items, 'requested_amount'));
@@ -33,30 +36,28 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background: #f8f9fa; }
+        body { background: #f8f9fa; font-family: 'Sarabun', sans-serif; }
         .card { border-radius: 15px; }
         .chart-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
         .chart-box { background: #fff; padding: 15px; border-radius: 15px; flex: 1; }
         .modal-lg { max-width: 90% !important; }
-
     </style>
-    
-    
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="#">Dashboard</a>
-    <div class="d-flex">
-      <a href="login.php" class="btn btn-success btn-lg">Login</a>
-    </div>
-  </div>
-</nav>
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Dashboard</a>
+        <div class="d-flex">
+          <a href="login.php" class="btn btn-success btn-lg">Login</a>
+        </div>
+      </div>
+    </nav>
+
 <div class="container my-4">
-    <h2 class="text-center mb-4">📊 Dashboard งบประมาณงบประมาณโครงการ IT (ปี <?php echo $selectedYear; ?>)</h2>
+    <h2 class="text-center mb-4">📊 Dashboard งบประมาณโครงการ IT (ปี <?php echo $selectedYear; ?>)</h2>
 
     <!-- Filter ปี -->
    <form method="GET" class="mb-3 text-center">
@@ -68,26 +69,13 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
             </option>
         <?php endforeach; ?>
     </select>
-
-    <!-- ปุ่ม Export -->
-    <!-- <div class="btn-group ms-2">
-        <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">Export Excel</button>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=items">เฉพาะ Items</a></li>
-            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=detail">เฉพาะ Detail</a></li>
-            <li><a class="dropdown-item" href="export_excel.php?year=<?php echo $selectedYear; ?>&type=full">รวม Items + Detail</a></li>
-        </ul>
-    </div> -->
-
-   
 </form>
-
 
     <!-- Summary Cards -->
     <div class="row text-center mb-4">
         <div class="col-md-3"><div class="card p-3 bg-primary text-white"><h4>งบประมาณทั้งหมด</h4><h2><?php echo number_format($totalRequested, 2); ?> บาท</h2></div></div>
         <div class="col-md-3"><div class="card p-3 bg-success text-white"><h4>ใช้จ่ายแล้วทั้งหมด</h4><h2><?php echo number_format($totalApproved, 2); ?> บาท</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 bg-info text-white"><h4>งบประมาณคงเหลือทั้งหมด</h4><h2><?php echo number_format($totalRequested - $totalApproved, 2); ?></h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-info text-white"><h4>งบประมาณคงเหลือทั้งหมด</h4><h2><?php echo number_format($totalRequested - $totalApproved, 2); ?> บาท</h2></div></div>
         <div class="col-md-3"><div class="card p-3 bg-warning text-white"><h4>% ใช้จ่ายจริง</h4><h2>
             <?php 
                 $percentUsed = $totalRequested > 0 ? ($totalApproved / $totalRequested) * 100 : 0;
@@ -119,7 +107,15 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
     <!-- กราฟ -->
     <div class="chart-container">
         <div class="chart-box" style="flex: 2;">
-            <h5 class="text-center">งบประมาณเปรียบเทียบกับการใช้จ่ายจริง </h5>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">งบประมาณเปรียบเทียบกับการใช้จ่ายจริง</h5>
+                <select id="chartType" class="form-select w-auto">
+                    <option value="requested">งบประมาณ</option>
+                    <option value="approved">ใช้จ่ายแล้ว</option>
+                    <option value="remaining">คงเหลือ</option>
+                    <option value="all">รวมทั้งหมด</option>
+                </select>
+            </div>
             <canvas id="budgetChart"></canvas>
         </div>
         <div class="chart-box" style="flex: 1;">
@@ -148,25 +144,48 @@ const labels = <?php echo $itemNames; ?>;
 const requested = <?php echo $requested; ?>;
 const approved = <?php echo $approved; ?>;
 const percentage = <?php echo $percentage; ?>;
+const remaining = <?php echo $remaining; ?>;
 
-// ✅ Bar + Line Chart
-new Chart(document.getElementById('budgetChart'), {
+// ✅ สร้างกราฟเริ่มต้น
+const ctx = document.getElementById('budgetChart');
+let budgetChart = new Chart(ctx, {
     type: 'bar',
     data: {
         labels: labels,
         datasets: [
-            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
-            { label: 'ใช้จ่ายแล้ว', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
-            { label: '%', data: percentage, type: 'line', borderColor: '#FFA726', yAxisID: 'y1' }
+            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 }
         ]
     },
     options: {
         responsive: true,
-        scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'บาท' } },
-            y1: { beginAtZero: true, position: 'right', title: { display: true, text: '%' } }
-        }
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'บาท' } } }
     }
+});
+
+// ✅ เปลี่ยน dataset เมื่อเลือก dropdown
+document.getElementById('chartType').addEventListener('change', function(){
+    const type = this.value;
+    let dataset = [];
+
+    if(type === 'requested'){
+        dataset = [{ label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 }];
+    } 
+    else if(type === 'approved'){
+        dataset = [{ label: 'ใช้จ่ายแล้ว', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 }];
+    } 
+    else if(type === 'remaining'){
+        dataset = [{ label: 'คงเหลือ', data: remaining, backgroundColor: '#FFA726', borderRadius: 10 }];
+    }
+    else if(type === 'all'){
+        dataset = [
+            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
+            { label: 'ใช้จ่ายแล้ว', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
+            { label: 'คงเหลือ', data: remaining, backgroundColor: '#FFA726', borderRadius: 10 }
+        ];
+    }
+
+    budgetChart.data.datasets = dataset;
+    budgetChart.update();
 });
 
 // ✅ Pie Chart
