@@ -179,7 +179,7 @@ $issues = $stmt;
     <!-- ปุ่มดูขั้นตอน Timeline -->
     <?php if(!empty($steps)): ?>
          
-        <a href="index3.php?id_detail=<?= $steps[0]['id_butget_detail'] ?>" 
+        <a href="steps.php?id_detail=<?= $steps[0]['id_butget_detail'] ?>" 
            class="btn btn-sm btn-primary mb-3">
            <h4><i class="bi bi-diagram-3"></i> ดูขั้นตอน (Timeline) </h4>
         </a>

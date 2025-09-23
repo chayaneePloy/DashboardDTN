@@ -58,7 +58,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 <head>
 <meta charset="UTF-8">
 <title>Edit Budget Item</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>body{font-family:'Sarabun',sans-serif;}</style>
 <style>
     .detail-row { margin-bottom:10px; }
 </style>
@@ -80,11 +83,21 @@ function addDetailRow(){
 }
 </script>
 </head>
-<body class="p-4">
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
+    <div class="d-flex">
+      <span class="navbar-text text-white me-3">สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?></span>
+      <a href="index.php" class="btn btn-danger btn-sm">Logout</a>
+    </div>
+  </div>
+</nav>
+<body class="p-4 bg-light">
 <div class="container">
 <h2>Edit Budget Item</h2>
 
-<form method="post">
+<form method="post" class="card p-4 shadow-sm bg-white">
     <div class="mb-3">
         <label>Item Name</label>
         <input type="text" name="item_name" class="form-control" value="<?= htmlspecialchars($item['item_name']) ?>" required>
@@ -114,7 +127,8 @@ function addDetailRow(){
             <div class="col"><input type="number" step="0.01" name="approved_amount[]" class="form-control" value="<?= $d['approved_amount'] ?>" required></div>
             <div class="col-auto">
                 <a href="delete_detail.php?id_detail=<?= $d['id_detail'] ?>&redirect=edit_budget_item.php?id=<?= $item['id'] ?>" 
-                   class="btn btn-danger" onclick="return confirm('ลบ detail นี้จริงหรือไม่?')">❌</a>
+   class="btn btn-danger" onclick="return confirm('คุณต้องการลบรายละเอียดนี้ ใช่หรือไม่?')">❌</a>
+
             </div>
         </div>
         <?php endforeach; ?>

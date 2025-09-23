@@ -42,12 +42,41 @@ foreach ($items as $item) {
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container-fluid">
     <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
-    <div class="d-flex">
-      <span class="navbar-text text-white me-3">สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?></span>
-      <a href="index.php" class="btn btn-danger btn-sm">Logout</a>
+
+    <!-- ปุ่ม toggle สำหรับมือถือ -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <!-- เมนูด้านซ้าย -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="dashboard_view_project.php">
+            รายละเอียดโครงการ
+          </a>
+          
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="dashboard_step.php">
+            limeline โครงการ
+          </a>
+          
+        </li>
+        <!-- ถ้าต้องการเพิ่มเมนูอื่น ก็เพิ่ม <li> ได้ -->
+      </ul>
+
+      <!-- เมนูด้านขวา -->
+      <div class="d-flex align-items-center">
+        <span class="navbar-text text-white me-3">
+          สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?>
+        </span>
+        <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
+      </div>
     </div>
   </div>
 </nav>
+
 
 <div class="container my-4">
 
@@ -96,7 +125,7 @@ foreach ($items as $item) {
           <strong><?= htmlspecialchars($item['item_name']) ?> (<?= $item['fiscal_year'] ?>)</strong>
           <div>
             <a href="edit_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-warning">แก้ไข</a>
-            <a href="delete_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('ลบจริงหรือไม่?')">ลบ</a>
+            <a href="delete_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('คุณต้องการลบข้อมูลทั้งหมดจริงหรือไม่?')">ลบ</a>
           </div>
         </div>
         <div class="card-body">

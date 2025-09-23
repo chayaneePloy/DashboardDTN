@@ -1,91 +1,148 @@
 <?php
-include 'db.php';
+// ---------------- เชื่อมต่อฐานข้อมูล ----------------
+$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ดึงปีทั้งหมด
-$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
-$year = isset($_GET['year']) ? intval($_GET['year']) : (count($years) ? $years[0] : date('Y'));
+$id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
 
-// ดึงข้อมูล budget_items
-$stmt = $pdo->prepare("SELECT * FROM budget_items WHERE fiscal_year = ?");
-$stmt->execute([$year]);
-$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// ดึงชื่อโครงการ
+$stmtDetail = $pdo->prepare("SELECT detail_name FROM budget_detail WHERE id_detail = :id_detail");
+$stmtDetail->execute([':id_detail' => $id_detail]);
+$project_detail = $stmtDetail->fetch(PDO::FETCH_ASSOC);
+$detail_name = $project_detail ? $project_detail['detail_name'] : '-';
+
+// ดึงข้อมูลขั้นตอน
+$steps_stmt = $pdo->prepare("
+    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_butget_detail
+    FROM project_steps
+    WHERE id_butget_detail = :id_detail
+    ORDER BY step_order
+");
+$steps_stmt->execute([':id_detail' => $id_detail]);
+$steps = $steps_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// หาขั้นตอนปัจจุบัน และถัดไป
+$currentStep = null;
+$nextStep = null;
+foreach ($steps as $i => $s) {
+    if (!$s['is_completed'] && !$currentStep) {
+        $currentStep = $s;
+        $nextStep = $steps[$i+1] ?? null;
+    }
+}
+
+// ฟังก์ชันวันที่ไทย
+function thai_date($date) {
+    if (!$date) return '';
+    $months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+               "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    $ts = strtotime($date);
+    return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts) + 543);
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard งบประมาณ</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body { font-family: Tahoma; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-th { background: #eee; }
-.controls { margin-bottom: 15px; }
-button { padding: 8px 12px; margin: 5px; }
-canvas { background: #fff; border: 1px solid #ccc; margin-top: 20px; border-radius: 10px; }
-</style>
+  <meta charset="UTF-8">
+  <title>ระบบติดตามโครงการ</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body { font-family: 'Kanit', sans-serif; background: #f8f9fa; }
+    .process-step.completed { border-left: 4px solid #28a745; }
+    .step-number { background:#3498db; color:#fff; border-radius:50%; width:40px; height:40px; display:flex; justify-content:center; align-items:center; font-weight:bold; }
+  </style>
 </head>
 <body>
-<h2>Dashboard งบประมาณ ปี <?php echo $year; ?></h2>
+<nav class="navbar navbar-dark bg-primary">
+  <div class="container"><a class="navbar-brand" href="#">ระบบติดตามขั้นตอนโครงการ</a></div>
+</nav>
 
-<div class="controls">
-<form method="get" style="display:inline-block;">
-    <label>เลือกปี:</label>
-    <select name="year" onchange="this.form.submit()">
-        <?php foreach ($years as $y): ?>
-            <option value="<?= $y ?>" <?= ($y == $year) ? 'selected' : '' ?>><?= $y ?></option>
-        <?php endforeach; ?>
-    </select>
-</form>
-<a href="export_pdf.php?year=<?= $year ?>&type=full&mode=preview" target="_blank"><button>แสดงตัวอย่าง PDF</button></a>
-<a href="export_pdf.php?year=<?= $year ?>&type=full&mode=download"><button>ดาวน์โหลด PDF</button></a>
-<a href="export_excel.php?year=<?= $year ?>&type=items"><button>Excel (Items)</button></a>
-<a href="export_excel.php?year=<?= $year ?>&type=detail"><button>Excel (Detail)</button></a>
-<a href="export_excel.php?year=<?= $year ?>&type=full"><button>Excel (รวม)</button></a>
+<div class="container my-4">
+  <h1 class="text-center">ขั้นตอนการดำเนินโครงการ</h1>
+  <h3 class="text-center text-secondary mb-4"><?= htmlspecialchars($detail_name) ?></h3>
+
+  <!-- แสดง Current/Next -->
+  <?php if($currentStep): ?>
+  <div class="alert alert-info">
+    <strong>ขั้นตอนปัจจุบัน:</strong> <?= htmlspecialchars($currentStep['step_name']) ?>  
+    <?php if($nextStep): ?><br><strong>ขั้นตอนถัดไป:</strong> <?= htmlspecialchars($nextStep['step_name']) ?><?php endif; ?>
+  </div>
+  <?php endif; ?>
+
+  <!-- Timeline -->
+  <div class="process-timeline">
+    <?php foreach($steps as $step): ?>
+    <div class="card mb-3 <?= $step['is_completed'] ? 'border-success' : '' ?>">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <h5 class="card-title"><?= htmlspecialchars($step['step_order']) ?>. <?= htmlspecialchars($step['step_name']) ?></h5>
+          <span class="badge bg-warning"><?= thai_date($step['step_date']) ?></span>
+        </div>
+        <p class="card-text"><?= nl2br(htmlspecialchars($step['step_description'])) ?></p>
+
+        <?php if(!empty($step['sub_steps'])): ?>
+          <div class="bg-light p-2 rounded"><strong>ขั้นตอนย่อย:</strong> <?= nl2br(htmlspecialchars($step['sub_steps'])) ?></div>
+        <?php endif; ?>
+
+        <?php if(!empty($step['document_path'])): ?>
+          <a href="documents/<?= htmlspecialchars($step['document_path']) ?>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">📂 ดูไฟล์</a>
+        <?php endif; ?>
+
+        <!-- ปุ่มแก้ไข -->
+        <button class="btn btn-sm btn-outline-success mt-2" data-bs-toggle="modal" data-bs-target="#editModal<?= $step['id'] ?>">✏️ แก้ไข</button>
+      </div>
+    </div>
+
+    <!-- Modal แก้ไข -->
+    <div class="modal fade" id="editModal<?= $step['id'] ?>" tabindex="-1">
+      <div class="modal-dialog">
+        <form method="post" action="update_step.php" enctype="multipart/form-data" class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">แก้ไขขั้นตอน</h5></div>
+          <div class="modal-body">
+            <input type="hidden" name="id" value="<?= $step['id'] ?>">
+            <div class="mb-2">
+              <label class="form-label">ชื่อขั้นตอน</label>
+              <input type="text" name="step_name" class="form-control" value="<?= htmlspecialchars($step['step_name']) ?>">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">วันที่</label>
+              <input type="date" name="step_date" class="form-control" value="<?= $step['step_date'] ?>">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">รายละเอียด</label>
+              <textarea name="step_description" class="form-control"><?= htmlspecialchars($step['step_description']) ?></textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">ขั้นตอนย่อย</label>
+              <textarea name="sub_steps" class="form-control"><?= htmlspecialchars($step['sub_steps']) ?></textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">อัปโหลดไฟล์</label>
+              <input type="file" name="document" class="form-control">
+              <?php if($step['document_path']): ?>
+                <p class="mt-1 small">ไฟล์ปัจจุบัน: <?= htmlspecialchars($step['document_path']) ?></p>
+              <?php endif; ?>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_completed" value="1" <?= $step['is_completed'] ? 'checked' : '' ?>>
+              <label class="form-check-label">ทำเสร็จแล้ว</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">บันทึก</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
 </div>
 
-<h3>ตารางงบประมาณ</h3>
-<table>
-<tr><th>ชื่อโครงการ</th><th>งบที่ขอ</th><th>งบที่ได้</th><th>%</th></tr>
-<?php foreach ($items as $item): ?>
-<tr>
-    <td><?= $item['item_name'] ?></td>
-    <td><?= number_format($item['requested_amount'],2) ?></td>
-    <td><?= number_format($item['approved_amount'],2) ?></td>
-    <td><?= $item['percentage'] ?>%</td>
-</tr>
-<?php endforeach; ?>
-</table>
-
-<canvas id="barChart" width="400" height="200"></canvas>
-<canvas id="pieChart" width="400" height="200"></canvas>
-
-<script>
-const labels = <?= json_encode(array_column($items, 'item_name')) ?>;
-const requested = <?= json_encode(array_map('floatval', array_column($items, 'requested_amount'))) ?>;
-const approved = <?= json_encode(array_map('floatval', array_column($items, 'approved_amount'))) ?>;
-const percentage = <?= json_encode(array_map('floatval', array_column($items, 'percentage'))) ?>;
-
-new Chart(document.getElementById('barChart'), {
-    type: 'bar',
-    data: {
-        labels: labels,
-        datasets: [
-            { label: 'งบที่ขอ', data: requested, backgroundColor: 'rgba(54,162,235,0.6)', borderRadius: 10 },
-            { label: 'งบที่ได้', data: approved, backgroundColor: 'rgba(75,192,192,0.6)', borderRadius: 10 }
-        ]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'top' } } }
-});
-
-new Chart(document.getElementById('pieChart'), {
-    type: 'pie',
-    data: {
-        labels: labels,
-        datasets: [{ data: percentage, backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0'] }]
-    }
-});
-</script>
+<footer class="bg-dark text-white text-center py-3 mt-5">
+  <p>&copy; <?= date('Y')+543 ?> ระบบติดตามขั้นตอนโครงการ</p>
+</footer>
 </body>
 </html>
+<?php $pdo=null; ?>

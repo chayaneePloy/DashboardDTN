@@ -44,6 +44,16 @@ function addDetailRow(){
 }
 </script>
 </head>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
+    <div class="d-flex">
+      <span class="navbar-text text-white me-3">สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?></span>
+      <a href="index.php" class="btn btn-danger btn-sm">Logout</a>
+    </div>
+  </div>
+</nav>
 <body class="bg-light">
 <div class="container my-4">
 <h2>➕ เพิ่ม Budget Item</h2>
