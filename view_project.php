@@ -50,6 +50,38 @@ $contracts = $stmt;
 $stmt = $pdo->prepare("SELECT * FROM issues WHERE id_detail = :id_detail");
 $stmt->execute([':id_detail' => $id_detail]);
 $issues = $stmt;
+// ดึงชื่อโครงการจาก budget_detail
+$stmtDetail = $pdo->prepare("SELECT detail_name FROM budget_detail WHERE id_detail = :id_detail");
+$stmtDetail->execute([':id_detail' => $id_detail]);
+$project_detail = $stmtDetail->fetch(PDO::FETCH_ASSOC);
+$detail_name = $project_detail ? $project_detail['detail_name'] : '-';
+
+// คำนวณ progress
+$completed = array_sum(array_column($steps, 'is_completed'));
+$total = count($steps);
+$percent = $total > 0 ? round(($completed / $total) * 100) : 0;
+
+// ขั้นตอนล่าสุดที่เสร็จแล้ว
+$current_stmt = $pdo->prepare("
+    SELECT step_order, step_name 
+    FROM project_steps 
+    WHERE id_budget_detail = :id_detail AND is_completed = 1
+    ORDER BY step_order DESC 
+    LIMIT 1
+");
+$current_stmt->execute([':id_detail' => $id_detail]);
+$current_step = $current_stmt->fetch(PDO::FETCH_ASSOC);
+
+// ขั้นตอนถัดไป
+$next_stmt = $pdo->prepare("
+    SELECT step_order, step_name 
+    FROM project_steps 
+    WHERE id_budget_detail = :id_detail AND is_completed = 0
+    ORDER BY step_order ASC 
+    LIMIT 1
+");
+$next_stmt->execute([':id_detail' => $id_detail]);
+$next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -208,7 +240,33 @@ $issues = $stmt;
             </div>
         </div>
     </div>
-
+  <!-- Current/Next Step -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="fw-bold text-success">✅ ขั้นตอนล่าสุดที่เสร็จแล้ว</h5>
+          <p>
+            <?= $current_step 
+                ? $current_step['step_order'].'. '.$current_step['step_name'] 
+                : 'ยังไม่เริ่มดำเนินการ' ?>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 mt-3 mt-md-0">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="fw-bold text-warning">⏳ ขั้นตอนถัดไป</h5>
+          <p>
+            <?= $next_step 
+                ? $next_step['step_order'].'. '.$next_step['step_name'] 
+                : 'โครงการเสร็จสิ้นแล้ว' ?>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
     <!-- ข้อมูลงบประมาณ -->
     <div class="card mb-4">
         <div class="card-header bg-success text-white">
