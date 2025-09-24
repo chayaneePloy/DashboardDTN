@@ -13,9 +13,9 @@ $detail_name = $project_detail ? $project_detail['detail_name'] : '-';
 
 // ดึงข้อมูลขั้นตอนโครงการ
 $steps_stmt = $pdo->prepare("
-    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_butget_detail
+    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_budget_detail
     FROM project_steps
-    WHERE id_butget_detail = :id_detail
+    WHERE id_budget_detail = :id_detail
     ORDER BY step_order
 ");
 $steps_stmt->execute([':id_detail' => $id_detail]);
@@ -39,7 +39,7 @@ $percent = $total > 0 ? round(($completed / $total) * 100) : 0;
 $current_stmt = $pdo->prepare("
     SELECT step_order, step_name 
     FROM project_steps 
-    WHERE id_butget_detail = :id_detail AND is_completed = 1
+    WHERE id_budget_detail = :id_detail AND is_completed = 1
     ORDER BY step_order DESC 
     LIMIT 1
 ");
@@ -50,7 +50,7 @@ $current_step = $current_stmt->fetch(PDO::FETCH_ASSOC);
 $next_stmt = $pdo->prepare("
     SELECT step_order, step_name 
     FROM project_steps 
-    WHERE id_butget_detail = :id_detail AND is_completed = 0
+    WHERE id_budget_detail = :id_detail AND is_completed = 0
     ORDER BY step_order ASC 
     LIMIT 1
 ");

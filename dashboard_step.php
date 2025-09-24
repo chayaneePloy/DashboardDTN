@@ -1,4 +1,6 @@
 <?php
+session_start();
+if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -20,7 +22,7 @@ $stmt = $pdo->prepare("
        ps.sub_steps, ps.document_path, ps.is_completed
 FROM budget_detail bd
 LEFT JOIN project_steps ps ON bd.id_detail = ps.id_budget_detail
-LEFT JOIN budget_item bi ON bd.budget_item_id = bi.id
+LEFT JOIN budget_items bi ON bd.budget_item_id = bi.id
 WHERE bd.fiscal_year = :year
 ORDER BY bd.budget_item_id, bd.id_detail, ps.step_order
 ");
@@ -47,17 +49,60 @@ function thai_date($date) {
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>ระบบติดตามโครงการ</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>body{font-family:'Sarabun',sans-serif;}</style>
+<style>
     body { background:#f4f6f9; font-family:'Kanit',sans-serif; }
     .timeline-container { display:flex; overflow-x:auto; gap:1rem; padding-bottom:1rem; }
     .step-card { min-width:260px; flex-shrink:0; border:none; }
     .step-card:hover { transform:translateY(-4px); transition:0.2s; }
   </style>
 </head>
-<body>
+
+<body class="bg-light">
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
+
+    <!-- ปุ่ม toggle สำหรับมือถือ -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <!-- เมนูด้านซ้าย -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="dashboard_view_project.php">
+            รายละเอียดโครงการ
+          </a>
+          
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="dashboard_step.php">
+            limeline โครงการ
+          </a>
+          
+        </li>
+        <!-- ถ้าต้องการเพิ่มเมนูอื่น ก็เพิ่ม <li> ได้ -->
+      </ul>
+
+      <!-- เมนูด้านขวา -->
+      <div class="d-flex align-items-center">
+        <span class="navbar-text text-white me-3">
+          สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?>
+        </span>
+        <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
+      </div>
+    </div>
+  </div>
+</nav>
 <div class="container my-4">
 
   <!-- Filter -->

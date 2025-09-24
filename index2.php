@@ -13,9 +13,9 @@ $detail_name = $project_detail ? $project_detail['detail_name'] : '-';
 
 // ดึงข้อมูลขั้นตอน
 $steps_stmt = $pdo->prepare("
-    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_butget_detail
+    SELECT id, step_order, step_name, step_date, step_description, sub_steps, document_path, is_completed, id_budget_detail
     FROM project_steps
-    WHERE id_butget_detail = :id_detail
+    WHERE id_budget_detail = :id_detail
     ORDER BY step_order
 ");
 $steps_stmt->execute([':id_detail' => $id_detail]);

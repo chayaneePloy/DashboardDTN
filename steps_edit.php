@@ -8,7 +8,7 @@ $id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
 // เพิ่มข้อมูลใหม่
 if (isset($_POST['add'])) {
     $stmt = $pdo->prepare("
-        INSERT INTO project_steps (id_butget_detail, step_name, step_order, step_date, is_completed) 
+        INSERT INTO project_steps (id_budget_detail, step_name, step_order, step_date, is_completed) 
         VALUES (:id_detail, :step_name, :step_order, :step_date, 0)
     ");
     $stmt->execute([
@@ -48,7 +48,7 @@ if (isset($_GET['delete'])) {
 }
 
 // ดึงรายการขั้นตอน
-$stmt = $pdo->prepare("SELECT * FROM project_steps WHERE id_butget_detail = :id_detail ORDER BY step_order ASC");
+$stmt = $pdo->prepare("SELECT * FROM project_steps WHERE id_budget_detail = :id_detail ORDER BY step_order ASC");
 $stmt->execute([':id_detail' => $id_detail]);
 $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>

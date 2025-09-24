@@ -21,9 +21,9 @@ $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // ดึงขั้นตอน project_steps ของโครงการนี้
 $steps_stmt = $pdo->prepare("
-    SELECT id, step_name, step_order, id_butget_detail
+    SELECT id, step_name, step_order, id_budget_detail
     FROM project_steps
-    WHERE id_butget_detail = :id_detail
+    WHERE id_budget_detail = :id_detail
     ORDER BY step_order
 ");
 $steps_stmt->execute([':id_detail' => $id_detail]);
@@ -58,12 +58,122 @@ $issues = $stmt;
 <title>รายละเอียดโครงการ</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2c3e50;
+        --success-color: #2ecc71;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+    }
+    
+    body {
+        font-family: 'Kanit', sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+    }
+    
+    .project-header {
+        background-color: var(--secondary-color);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 10px 10px;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: 500;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-completed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inprogress {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-pending {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .back-btn {
+        transition: all 0.3s ease;
+    }
+    
+    .back-btn:hover {
+        transform: translateX(-5px);
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            overflow-x: auto;
+        }
+    }
+</style>
 </head>
+<!-- ส่วนหัวเว็บ -->
+<div class="project-header">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="bi bi-clipboard2-data"></i> รายละเอียดโครงการ</h1>
+                <h2 class="h4"><?= htmlspecialchars($project['detail_name']) ?></h2>
+            </div>
+
+                <div class="btn-group" role="group">
+            <!-- ปุ่มกลับหน้าหลัก -->
+            <a href="index.php" class="btn btn-light back-btn">
+                <i class="bi bi-house"></i> หน้าหลัก
+            </a>
+
+            <!-- ปุ่มกลับหน้าก่อนหน้า -->
+            <a href="javascript:history.back()" class="btn btn-light back-btn">
+                <i class="bi bi-arrow-left"></i> กลับหน้าก่อนหน้า
+            </a>
+            </div>
+
+        </div>
+    </div>
+</div>
 <body class="bg-light">
 
 <div class="container my-4">
-    <h2>รายละเอียดโครงการ: <?= htmlspecialchars($project['detail_name']) ?></h2>
-    <p>ประเภท: <?= htmlspecialchars($project['item_name']) ?> | ปีงบ: <?= htmlspecialchars($project['fiscal_year']) ?></p>
+       <h2>ประเภท: <?= htmlspecialchars($project['item_name']) ?> | ปีงบ: <?= htmlspecialchars($project['fiscal_year']) ?></h2>
 
     <!-- ขั้นตอนโครงการ -->
     <div class="card mb-3">

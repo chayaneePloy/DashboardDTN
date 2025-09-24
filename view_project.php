@@ -21,9 +21,9 @@ $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // ดึงขั้นตอน project_steps ของโครงการนี้
 $steps_stmt = $pdo->prepare("
-    SELECT id, step_name, step_order, id_butget_detail
+    SELECT id, step_name, step_order, id_budget_detail
     FROM project_steps
-    WHERE id_butget_detail = :id_detail
+    WHERE id_budget_detail = :id_detail
     ORDER BY step_order
 ");
 $steps_stmt->execute([':id_detail' => $id_detail]);
@@ -179,7 +179,7 @@ $issues = $stmt;
     <!-- ปุ่มดูขั้นตอน Timeline -->
     <?php if(!empty($steps)): ?>
          
-        <a href="steps.php?id_detail=<?= $steps[0]['id_butget_detail'] ?>" 
+        <a href="steps.php?id_detail=<?= $steps[0]['id_budget_detail'] ?>" 
            class="btn btn-sm btn-primary mb-3">
            <h4><i class="bi bi-diagram-3"></i> ดูขั้นตอน (Timeline) </h4>
         </a>
