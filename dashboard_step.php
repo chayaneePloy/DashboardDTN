@@ -1,6 +1,5 @@
 <?php
-session_start();
-if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
+
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

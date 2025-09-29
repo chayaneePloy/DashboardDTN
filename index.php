@@ -36,15 +36,9 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { background: #f8f9fa; font-family: 'Sarabun', sans-serif; }
-        .card { border-radius: 15px; }
-        .chart-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
-        .chart-box { background: #fff; padding: 15px; border-radius: 15px; flex: 1; }
-        .modal-lg { max-width: 90% !important; }
-    </style>
+   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -61,7 +55,7 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
 
     <!-- Filter ปี -->
    <form method="GET" class="mb-3 text-center">
-    <label for="year">เลือกปี:</label>
+    <label for="year">ปีงบประมาณ:</label>
     <select name="year" onchange="this.form.submit()" class="form-select w-auto d-inline-block">
         <?php foreach($years as $year): ?>
             <option value="<?php echo $year; ?>" <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
@@ -70,13 +64,16 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
         <?php endforeach; ?>
     </select>
 </form>
+<div class="row text-center mb-4">
+     <div class="col-md-12"><div class="card p-3 bg-blue-800 text-white"><h4>งบตาม พรบ.</h4><h2><?php echo number_format($totalRequested); ?> บาท</h2></div></div>
+        </div>
 
     <!-- Summary Cards -->
     <div class="row text-center mb-4">
-        <div class="col-md-3"><div class="card p-3 bg-primary text-white"><h4>งบประมาณทั้งหมด</h4><h2><?php echo number_format($totalRequested, 2); ?> บาท</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 bg-success text-white"><h4>ใช้จ่ายแล้วทั้งหมด</h4><h2><?php echo number_format($totalApproved, 2); ?> บาท</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 bg-info text-white"><h4>งบประมาณคงเหลือทั้งหมด</h4><h2><?php echo number_format($totalRequested - $totalApproved, 2); ?> บาท</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 bg-warning text-white"><h4>% ใช้จ่ายจริง</h4><h2>
+        <div class="col-md-3"><div class="card p-3 bg-blue-600 text-white"><h4>งบตามโครงการ</h4><h2><?php echo number_format($totalRequested); ?> บาท</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-blue-500 text-white"><h4>ใช้จ่ายตามโครงการ</h4><h2><?php echo number_format($totalApproved); ?> บาท</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-blue-400 text-white"><h4>คงเหลือ</h4><h2><?php echo number_format($totalRequested - $totalApproved); ?> บาท</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-blue-300 text-white"><h4>% ใช้จ่ายจริง</h4><h2>
             <?php 
                 $percentUsed = $totalRequested > 0 ? ($totalApproved / $totalRequested) * 100 : 0;
                 echo number_format($percentUsed, 2);

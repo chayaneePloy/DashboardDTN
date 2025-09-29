@@ -63,7 +63,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบติดตามขั้นตอนโครงการ</title>
-  <<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
       body {
@@ -108,11 +108,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
     <a class="navbar-brand fw-bold" href="#">📊 ระบบติดตามโครงการ</a>
 
     <div class="ms-auto">
-      <!-- ปุ่มจัดการขั้นตอน ส่ง id_detail ไปด้วย -->
-      <a href="steps_edit.php?id_detail=<?= $id_detail ?>" class="btn btn-light ">
-        ⚙️ จัดการขั้นตอน
-      </a>
-         <!-- ปุ่มกลับหน้าหลัก -->
+           <!-- ปุ่มกลับหน้าหลัก -->
               <a href="index.php" class="btn btn-light back-btn">
                   <i class="bi bi-house"></i> หน้าหลัก
               </a>
@@ -175,32 +171,31 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 
   <!-- Timeline -->
   <h4 class="mb-3 text-secondary">📌 ขั้นตอนการดำเนินงาน</h4>
-  <div class="timeline-container">
+  <div class="container">
     <?php foreach($steps as $step): ?>
-    <div class="card step-card shadow-sm <?= $step['is_completed'] ? 'bg-light' : '' ?>">
-      <div class="card-body">
+    <div class="card step-card shadow-sm  card mb-3  <?= $step['is_completed'] ? 'bg-light' : '' ?>">
+      <div class="card mb-3 border-success ">
+        <div class='card-body'>
         <h5 class="fw-bold <?= $step['is_completed'] ? 'text-success' : 'text-dark' ?>">
           <?= $step['step_order'] ?>. <?= $step['step_name'] ?>
         </h5>
-        <span class="badge bg-warning text-dark"><?= thai_date($step['step_date']) ?></span>
-        <p class="mt-2 small text-muted">
+          <div class="ms-auto">
+             <span class="badge bg-warning text-dark  "><?= thai_date($step['step_date']) ?></span>
+            </div>
+            <p class="mt-2 small text-muted">
           <?= mb_strimwidth($step['step_description'], 0, 80, '...') ?>
         </p>
-        <div class="d-flex gap-2">
+        <div class="d-flex mb-4">
           <button class="btn btn-sm btn-outline-primary"
                   data-bs-toggle="modal" data-bs-target="#stepModal<?= $step['id'] ?>">
-            ดูรายละเอียด
+            ดูรายละเอียด <br/>
+
           </button>
 
           <!-- ปุ่มสลับสถานะแบบเร็ว (กดแล้วจะส่งไปยัง steps_edit.php เพื่ออัปเดตแบบง่าย) -->
-          <form method="post" action="steps_edit.php?id_detail=<?= $id_detail ?>" style="display:inline;">
-            <input type="hidden" name="toggle_id" value="<?= $step['id'] ?>">
-            <input type="hidden" name="current_state" value="<?= $step['is_completed'] ?>">
-            <button type="submit" class="btn btn-sm <?= $step['is_completed'] ? 'btn-outline-success' : 'btn-success' ?>">
-              <?= $step['is_completed'] ? 'ทำซ้ำเป็นยังไม่เสร็จ' : 'ทำเครื่องหมายเสร็จ' ?>
-            </button>
-          </form>
+        
         </div>
+      </div>
       </div>
     </div>
 
@@ -220,12 +215,6 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
                 <strong>ขั้นตอนย่อย:</strong><br>
                 <?= nl2br($step['sub_steps']) ?>
               </div>
-            <?php endif; ?>
-            <?php if(!empty($step['document_path'])): ?>
-              <a href="documents/<?= $step['document_path'] ?>" target="_blank"
-                 class="btn btn-sm btn-outline-success">
-                เปิดเอกสาร
-              </a>
             <?php endif; ?>
           </div>
         </div>
