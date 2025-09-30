@@ -84,7 +84,7 @@ echo "<table class='table table-bordered table-striped'>
         <tbody>";
 
 foreach($details as $d){
-    $link = "view_project.php?id_detail=" . $d['id_detail'];
+    $link = "steps.php?id_detail=" . $d['id_detail'];
     echo "<tr>
         <td><a href='{$link}' class='text-decoration-none'>{$d['detail_name']}</a></td>
         <td>".number_format($d['requested_amount'],2)."</td>

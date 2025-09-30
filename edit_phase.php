@@ -1,14 +1,20 @@
 <?php
 // ===================== CONNECT =====================
+session_start();
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // ===================== UTIL =====================
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-
 $allowedStatus = ['รอดำเนินการ','อยู่ระหว่างดำเนินการ','เสร็จสิ้น','ยกเลิก'];
 
-// ===================== LOAD / UPDATE =====================
+// CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
+}
+$csrf_token = $_SESSION['csrf_token'];
+
+// ===================== LOAD PARAMS =====================
 $phase_id   = $_GET['phase_id'] ?? $_POST['phase_id'] ?? null;
 $return_url = $_GET['return']    ?? $_POST['return_url'] ?? '';
 
@@ -19,62 +25,93 @@ if (!$phase_id || !ctype_digit((string)$phase_id)) {
 
 $successMsg = $errorMsg = "";
 
-// เมื่อกดบันทึก (POST)
+// ===================== HANDLE POST (UPDATE/DELETE) =====================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // รับค่า
-    $phase_number    = $_POST['phase_number'] ?? '';
-    $phase_name      = trim($_POST['phase_name'] ?? '');
-    $amountInput     = str_replace([',',' '], '', $_POST['amount'] ?? '0');
-    $due_date        = $_POST['due_date'] ?: null;
-    $completion_date = $_POST['completion_date'] ?: null;
-    $payment_date    = $_POST['payment_date'] ?: null;
-    $status          = $_POST['status'] ?? $allowedStatus[0];
+    // ตรวจ CSRF
+    $csrf_ok = isset($_POST['csrf_token']) && hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
+    if (!$csrf_ok) {
+        http_response_code(403);
+        exit("CSRF token ไม่ถูกต้อง");
+    }
 
-    // แปลง/ตรวจสอบ
-    $phase_number = (int)$phase_number;
-    if (!is_numeric($amountInput)) {
-        $errorMsg = "จำนวนเงินไม่ถูกต้อง";
+    $action = $_POST['action'] ?? 'save';
+
+    if ($action === 'delete') {
+        // ====== DELETE PHASE ======
+        try {
+            $stmt = $pdo->prepare("DELETE FROM phases WHERE phase_id = ?");
+            $stmt->execute([$phase_id]);
+            // ถ้าต้องการตรวจจำนวนแถวที่ลบได้:
+            // if ($stmt->rowCount() === 0) { $errorMsg = "ไม่พบงวดงานหรือไม่สามารถลบได้"; }
+            if ($return_url) {
+                header("Location: ".$return_url.(str_contains($return_url,'?') ? '&' : '?')."deleted=1");
+                exit;
+            } else {
+                $successMsg = "ลบงวดงานเรียบร้อยแล้ว";
+                // เคลียร์ฟอร์มให้อ่านอย่างเดียวโดยไม่หลุด error
+            }
+        } catch (Throwable $e) {
+            // หากมี Foreign Key หรือข้อจำกัดอื่น ๆ
+            $errorMsg = "ไม่สามารถลบงวดงานได้: ".$e->getMessage();
+        }
+
     } else {
-        $amount = (float)$amountInput;
-        if ($amount < 0) $errorMsg = "จำนวนเงินต้องเป็นค่าบวก";
-    }
-    if (!in_array($status, $allowedStatus, true)) {
-        $status = $allowedStatus[0];
-    }
+        // ====== SAVE (UPDATE) ======
+        // รับค่า
+        $phase_number    = $_POST['phase_number'] ?? '';
+        $phase_name      = trim($_POST['phase_name'] ?? '');
+        $amountInput     = str_replace([',',' '], '', $_POST['amount'] ?? '0');
+        $due_date        = $_POST['due_date'] ?: null;
+        $completion_date = $_POST['completion_date'] ?: null;
+        $payment_date    = $_POST['payment_date'] ?: null;
+        $status          = $_POST['status'] ?? $allowedStatus[0];
 
-    // แนะนำ: due_date <= completion_date
-    if (!$errorMsg && $due_date && $completion_date && ($due_date > $completion_date)) {
-        $errorMsg = "Due Date ต้องไม่เกิน Completion Date";
-    }
+        // แปลง/ตรวจสอบ
+        $phase_number = (int)$phase_number;
+        if (!is_numeric($amountInput)) {
+            $errorMsg = "จำนวนเงินไม่ถูกต้อง";
+        } else {
+            $amount = (float)$amountInput;
+            if ($amount < 0) $errorMsg = "จำนวนเงินต้องเป็นค่าบวก";
+        }
+        if (!in_array($status, $allowedStatus, true)) {
+            $status = $allowedStatus[0];
+        }
 
-    // บันทึก
-    if (!$errorMsg) {
-        $stmt = $pdo->prepare("
-            UPDATE phases
-            SET phase_number = ?,
-                phase_name = ?,
-                amount = ?,
-                due_date = ?,
-                completion_date = ?,
-                status = ?,
-                payment_date = ?
-            WHERE phase_id = ?
-        ");
-        $stmt->execute([
-            $phase_number,
-            $phase_name,
-            $amount,
-            $due_date,
-            $completion_date,
-            $status,
-            $payment_date,
-            $phase_id
-        ]);
-        $successMsg = "บันทึกข้อมูลเรียบร้อยแล้ว";
+        // แนะนำ: due_date <= completion_date
+        if (!$errorMsg && $due_date && $completion_date && ($due_date > $completion_date)) {
+            $errorMsg = "Due Date ต้องไม่เกิน Completion Date";
+        }
+
+        // บันทึก
+        if (!$errorMsg) {
+            $stmt = $pdo->prepare("
+                UPDATE phases
+                SET phase_number = ?,
+                    phase_name = ?,
+                    amount = ?,
+                    due_date = ?,
+                    completion_date = ?,
+                    status = ?,
+                    payment_date = ?
+                WHERE phase_id = ?
+            ");
+            $stmt->execute([
+                $phase_number,
+                $phase_name,
+                $amount,
+                $due_date,
+                $completion_date,
+                $status,
+                $payment_date,
+                $phase_id
+            ]);
+            $successMsg = "บันทึกข้อมูลเรียบร้อยแล้ว";
+        }
     }
 }
 
-// โหลดข้อมูลปัจจุบัน (รวมรายละเอียดอ้างอิง)
+// ===================== LOAD CURRENT DATA =====================
 $stmt = $pdo->prepare("
     SELECT 
         p.phase_id, p.contract_detail_id, p.phase_number, p.phase_name, p.amount,
@@ -92,8 +129,28 @@ $stmt->execute([$phase_id]);
 $phase = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$phase) {
-    http_response_code(404);
-    exit("ไม่พบนงวดงานที่ต้องการแก้ไข");
+    // ถ้าเพิ่งลบสำเร็จและไม่ได้ redirect อาจเข้ามาตรงนี้
+    if ($successMsg) {
+        // แสดงหน้าแจ้งลบสำเร็จอย่างเดียว
+        $phase = [
+            'phase_id' => $phase_id,
+            'fiscal_year' => '',
+            'item_name' => '',
+            'detail_name' => '',
+            'contract_number' => '',
+            'contractor_name' => '',
+            'phase_number' => '',
+            'phase_name' => '',
+            'amount' => 0,
+            'due_date' => '',
+            'completion_date' => '',
+            'status' => '',
+            'payment_date' => ''
+        ];
+    } else {
+        http_response_code(404);
+        exit("ไม่พบนงวดงานที่ต้องการแก้ไข");
+    }
 }
 
 // ===================== VIEW =====================
@@ -163,6 +220,8 @@ if (!$phase) {
       <form method="post" class="row g-3">
         <input type="hidden" name="phase_id" value="<?= h($phase['phase_id']) ?>">
         <input type="hidden" name="return_url" value="<?= h($return_url) ?>">
+        <input type="hidden" name="csrf_token" value="<?= h($csrf_token) ?>">
+        <input type="hidden" name="action" value="save">
 
         <div class="col-md-2">
           <label class="form-label">งวดที่</label>
@@ -210,10 +269,43 @@ if (!$phase) {
           <?php else: ?>
             <a href="javascript:history.back()" class="btn btn-outline-secondary">ยกเลิก</a>
           <?php endif; ?>
+
+          <!-- ปุ่มลบ เปิด Modal -->
+          <button type="button" class="btn btn-danger ms-auto" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            ลบงวดงาน
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<!-- ============ DELETE CONFIRM MODAL ============ -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">ยืนยันการลบ</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          แน่ใจหรือไม่ว่าต้องการลบงวดงาน #<?= h($phase['phase_id']) ?> ?
+          <div class="text-danger mt-2 small">การลบนี้ไม่สามารถย้อนกลับได้</div>
+        </div>
+        <div class="modal-footer">
+          <input type="hidden" name="phase_id" value="<?= h($phase['phase_id']) ?>">
+          <input type="hidden" name="return_url" value="<?= h($return_url) ?>">
+          <input type="hidden" name="csrf_token" value="<?= h($csrf_token) ?>">
+          <input type="hidden" name="action" value="delete">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="submit" class="btn btn-danger">ลบงวดงาน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

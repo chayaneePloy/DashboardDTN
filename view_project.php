@@ -279,7 +279,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
                         <tr>
                             <th>งบที่ได้รับ</th>
                             <th>งบที่ทำสัญญา</th>
-                            <th>ปีงบประมาณ</th>
+                            
                         </tr>
                     </thead>
                     <tbody>
@@ -287,7 +287,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
                         <tr>
                             <td class="text-success fw-bold"><?= number_format($row['requested_amount'], 2) ?> บาท</td>
                             <td class="text-primary fw-bold"><?= number_format($row['approved_amount'], 2) ?> บาท</td>
-                            <td><?= htmlspecialchars($row['fiscal_year']) ?></td>
+                            
                         </tr>
                         <?php endwhile; ?>
                     </tbody>
