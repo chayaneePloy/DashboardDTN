@@ -43,9 +43,16 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
       <div class="container-fluid">
-        <a class="navbar-brand" href="#">Dashboard</a>
+        <a class="navbar-brand fs-3"  href="#" >Dashboard</a>
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+              <li class="nav-item">
+                <a class="nav-link active fs-5 text-white " href="dashboard_report.php">การจ่ายงวด (Phases)</a>
+            </li>
+
+        <!-- ถ้าต้องการเพิ่มเมนูอื่น ก็เพิ่ม <li> ได้ -->
+      </ul>
         <div class="d-flex">
-          <a href="login.php" class="btn btn-success btn-lg">Login</a>
+          <a href="dashboard.php" class="btn btn-success btn-lg">เพิ่มงบประมาณ</a>
         </div>
       </div>
     </nav>
@@ -107,10 +114,11 @@ $avgPercent = count($items) ? round(array_sum(array_column($items, 'percentage')
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">งบประมาณเปรียบเทียบกับการใช้จ่ายจริง</h5>
                 <select id="chartType" class="form-select w-auto">
+                    <option value="all">รวมทั้งหมด</option>
                     <option value="requested">งบประมาณ</option>
                     <option value="approved">ใช้จ่ายแล้ว</option>
                     <option value="remaining">คงเหลือ</option>
-                    <option value="all">รวมทั้งหมด</option>
+                    
                 </select>
             </div>
             <canvas id="budgetChart"></canvas>
@@ -150,7 +158,9 @@ let budgetChart = new Chart(ctx, {
     data: {
         labels: labels,
         datasets: [
-            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 }
+            { label: 'งบประมาณ', data: requested, backgroundColor: '#42A5F5', borderRadius: 10 },
+            { label: 'ใช้จ่ายแล้ว', data: approved, backgroundColor: '#66BB6A', borderRadius: 10 },
+            { label: 'คงเหลือ', data: remaining, backgroundColor: '#FFA726', borderRadius: 10 }
         ]
     },
     options: {

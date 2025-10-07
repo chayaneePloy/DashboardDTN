@@ -65,7 +65,7 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <h2 class="mb-4">📌 จัดการขั้นตอนโครงการ</h2>
 
     <!-- ฟอร์มเพิ่มขั้นตอน -->
-    <div class="card mb-4">
+      <!--<div class="card mb-4">
         <div class="card-header">เพิ่มขั้นตอนใหม่</div>
         <div class="card-body">
             <form method="post">
@@ -85,7 +85,9 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </form>
         </div>
-    </div>
+    </div>  -->
+
+
 
     <!-- ตารางขั้นตอน -->
     <div class="card">
@@ -134,7 +136,7 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <div class="mt-3">
-        <a href="index.php" class="btn btn-secondary">⬅ กลับหน้า Dashboard</a>
+        <a href="steps.php?id_detail=<?= urlencode($id_detail) ?>" class="btn btn-secondary">⬅ กลับหน้า Dashboard</a>
     </div>
 
 </body>

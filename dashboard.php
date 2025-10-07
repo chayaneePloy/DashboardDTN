@@ -1,6 +1,6 @@
 <?php
-session_start();
-if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
+//session_start();
+//if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
 include 'db.php';
 
 // ดึงปีทั้งหมดจาก DB
@@ -51,27 +51,17 @@ foreach ($items as $item) {
     <div class="collapse navbar-collapse" id="navbarNav">
       <!-- เมนูด้านซ้าย -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="dashboard_view_project.php">
-            รายละเอียดโครงการ
-          </a>
-          
-        </li>
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="dashboard_step.php">
-            limeline โครงการ
-          </a>
-          
-        </li>
+     
+
         <!-- ถ้าต้องการเพิ่มเมนูอื่น ก็เพิ่ม <li> ได้ -->
       </ul>
 
       <!-- เมนูด้านขวา -->
       <div class="d-flex align-items-center">
-        <span class="navbar-text text-white me-3">
+        <!--<span class="navbar-text text-white me-3">
           สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?>
-        </span>
-        <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
+        </span> -->
+        <a href="index.php" class="btn btn-danger btn-lg">หน้าหลัก</a>
       </div>
     </div>
   </div>
