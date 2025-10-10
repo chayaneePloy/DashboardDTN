@@ -65,7 +65,7 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <h2 class="mb-4">📌 จัดการขั้นตอนโครงการ</h2>
 
     <!-- ฟอร์มเพิ่มขั้นตอน -->
-      <!--<div class="card mb-4">
+      <div class="card mb-4">
         <div class="card-header">เพิ่มขั้นตอนใหม่</div>
         <div class="card-body">
             <form method="post">
@@ -85,7 +85,7 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </form>
         </div>
-    </div>  -->
+    </div> 
 
 
 
