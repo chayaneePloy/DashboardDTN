@@ -3,10 +3,15 @@
  * Dashboard งบประมาณ (สรุปไตรมาสรวมตามงบโครงการ จาก phases)
  * - ปีงบประมาณ: เลือกด้านบน (ควบคุมทั้งหน้า)
  * - ไตรมาส: แบบสะสม (Q2 = Q1+Q2, Q3 = Q1+Q2+Q3, Q4 = Q1+Q2+Q3+Q4)
- * - ปีฐานของบล็อกไตรมาส: ใช้ "ปีงบถัดจากปีที่เลือก" เสมอ
  * - ตารางไตรมาส: ดึงจาก phases (join contracts → budget_detail → budget_items)
  *                 รวมตาม budget_item_id พร้อมแสดง item_name
- * - ส่วนสรุป/กราฟทั้งปี: ใช้ยอด “ใช้จ่ายแล้ว” จาก phases.amount (แทน approved_amount)
+ * - การ์ด/กราฟทั้งปี:
+ *      - กราฟ/เปอร์เซ็นต์ในกราฟ อิงช่วงปีงบ (payment→completion→due)
+ *      - การ์ด "ใช้จ่ายตามโครงการ" = SUM(phases.amount) แบบไม่กรองวันที่ (ให้ตรงกับตารางทั้งปี)
+ * - บล็อกไตรมาส:
+ *      - กรองด้วย phases.payment_date เฉพาะช่วงไตรมาสที่เลือก
+ *      - คอลัมน์ “% จ่ายแล้ว (เทียบงบที่จ้างทั้งปี)” = (ยอดจ่ายของรายการในไตรมาส ÷
+ *        ผลรวม budget_detail.requested_amount ของ “ปีที่เลือก”) × 100
  *******************************/
 
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
@@ -31,7 +36,7 @@ function getQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): array {
     }
 }
 function getCumulativeQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): array {
-    // แบบสะสม (YTD): Q1=10/01~12/31, Q2=10/01~03/31, Q3=10/01~06/30, Q4=10/01~09/30
+    // แบบสะสม (YTD): Q1=10/01~12/31, Q2=01/01~03/31, Q3=04/01~06/30, Q4=07/01~09/30
     $gy = $fiscalBE - 543;
     $start = ($gy - 1) . "-10-01"; // ต้นปีงบ (ค.ศ.) = 1 ต.ค.ของปีก่อนหน้า
     switch ($quarter) {
@@ -57,9 +62,10 @@ $stmt = $pdo->prepare("SELECT * FROM budget_items WHERE fiscal_year = ? ORDER BY
 $stmt->execute([$selectedYear]);
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ===== ใช้ “ยอดใช้จ่ายแล้วทั้งปี” ต่อ budget_item_id จาก phases.amount =====
+// ===== ขอบเขตวันของปีงบที่เลือก =====
 [$fyStart, $fyEnd] = getFiscalYearRangeBE($selectedYear);
 
+// ===== (A) ใช้จ่ายแล้วทั้งปี (อิงช่วงปีงบ) — สำหรับกราฟ =====
 $stmtSpent = $pdo->prepare("
     SELECT 
         bi.id AS budget_item_id,
@@ -85,17 +91,33 @@ $stmtSpent->execute([
 ]);
 $spentRows = $stmtSpent->fetchAll(PDO::FETCH_KEY_PAIR); // [budget_item_id => spent_sum]
 
-// เตรียมข้อมูลกราฟ (ทั้งปี)
+// ===== (B) ใช้จ่ายแล้ว (จากงวดงาน) แบบ “ไม่กรองวันที่” — สำหรับตารางทั้งปี + การ์ด "ใช้จ่ายตามโครงการ" =====
+$stmtSpentAll = $pdo->prepare("
+    SELECT 
+        bd.budget_item_id AS budget_item_id,
+        COALESCE(SUM(p.amount), 0) AS spent_all_sum
+    FROM budget_detail bd
+    LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
+    LEFT JOIN phases   p ON p.contract_detail_id = c.contract_id
+    WHERE bd.budget_item_id IN (
+        SELECT id FROM budget_items WHERE fiscal_year = :fy
+    )
+    GROUP BY bd.budget_item_id
+");
+$stmtSpentAll->execute([':fy' => $selectedYear]);
+$spentAllByItem = $stmtSpentAll->fetchAll(PDO::FETCH_KEY_PAIR); // [budget_item_id => sum(phases.amount)]
+
+// ===== เตรียมข้อมูลกราฟ (ทั้งปี) — อิง (A) =====
 $itemNamesArr = array_column($items, 'item_name');
 $requestedArr = array_map('floatval', array_column($items, 'requested_amount'));
-$approvedArr  = [];
+$approvedArr  = [];   // ใช้จ่ายแล้ว (อิงช่วงปีงบ) สำหรับกราฟ
 $remainingArr = [];
 foreach ($items as $row) {
     $id   = (int)$row['id'];
     $req  = (float)$row['requested_amount'];
-    $used = isset($spentRows[$id]) ? (float)$spentRows[$id] : 0.0;
-    $approvedArr[]  = $used;              // ใช้จ่ายแล้วจาก phases
-    $remainingArr[] = max(0, $req - $used);
+    $usedFiscal = isset($spentRows[$id]) ? (float)$spentRows[$id] : 0.0; // อิงช่วงปีงบ
+    $approvedArr[]  = $usedFiscal;
+    $remainingArr[] = max(0, $req - $usedFiscal);
 }
 $itemNames  = json_encode($itemNamesArr, JSON_UNESCAPED_UNICODE);
 $requested  = json_encode($requestedArr);
@@ -105,37 +127,24 @@ $percentage = json_encode(array_map(function($req, $used){
                 }, $requestedArr, $approvedArr));
 $remaining  = json_encode($remainingArr);
 
-// การ์ดสรุปทั้งปี
-$totalRequested = array_sum($requestedArr);
-$totalApproved  = array_sum($approvedArr);
-$percentUsed    = $totalRequested > 0 ? ($totalApproved / $totalRequested) * 100 : 0;
+// ===== การ์ดสรุปทั้งปี =====
+$totalRequested = array_sum($requestedArr);      // งบตาม พรบ.
+$totalUsedAll   = array_sum($spentAllByItem);    // ใช้จ่ายตามโครงการ = SUM(phases.amount) ไม่กรองวันที่
+$percentUsed    = $totalRequested > 0 ? ($totalUsedAll / $totalRequested) * 100 : 0;
 
-// ---------------- ปีฐานของ “ตารางไตรมาส” = ปีงบ “ถัดจากปีที่เลือก” ----------------
-$desiredFY = $selectedYear + 1;  // Q1/Q2/Q3/Q4 ของบล็อกนี้จะอิงปีงบถัดไปเสมอ
+/* =============================================================================
+   บล็อกไตรมาส (ใช้ "ปีที่ผู้ใช้เลือก") — กรองเฉพาะ phases.payment_date
+   % จ่ายแล้ว (เทียบงบทั้งปี) = paid_sum(ไตรมาสนี้) / SUM(budget_detail.requested_amount ทั้งปีที่เลือก)
+============================================================================= */
 
-// เลือกปีที่มีจริงใกล้เคียง
-$stmtFY = $pdo->prepare("
-    SELECT DISTINCT fiscal_year 
-    FROM budget_items 
-    WHERE fiscal_year IN (?, ?)
-    ORDER BY fiscal_year ASC
-");
-$stmtFY->execute([$selectedYear, $selectedYear + 1]);
-$nearFYs = $stmtFY->fetchAll(PDO::FETCH_COLUMN);
-if (!$nearFYs) {
-    $nearFYs = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year ASC")->fetchAll(PDO::FETCH_COLUMN);
-}
-if (in_array($desiredFY, $nearFYs, true)) {
-    $baseFiscalYearForTable = $desiredFY;
-} else {
-    $baseFiscalYearForTable = end($nearFYs);
-}
+// ✅ ปีฐานตารางไตรมาส = ปีที่เลือกจริง
+$baseFiscalYearForTable = $selectedYear;
 
-// ✅ ช่วงวันของ “ไตรมาสที่เลือก” = แบบสะสม และคำนวณจาก “ปีงบถัดไป”
-$quarterFiscalBE = $selectedYear + 1;
+// ✅ ช่วงวันของ “ไตรมาสที่เลือก” = แบบสะสม และคำนวณจาก “ปีที่เลือกจริง”
+$quarterFiscalBE = $selectedYear;
 [$qStart, $qEnd] = getCumulativeQuarterRangeForFiscalBE($quarterFiscalBE, $quarter);
 
-// ป้ายกำกับไตรมาส (ไว้แสดงเฉย ๆ)
+// ป้ายกำกับไตรมาส
 $quarterMonthsMap = [
     1 => 'ต.ค. – ธ.ค.',
     2 => 'ม.ค. – มี.ค.',
@@ -143,46 +152,54 @@ $quarterMonthsMap = [
     4 => 'ก.ค. – ก.ย.',
 ];
 
-/* =============================================================================
-   ตารางไตรมาส: ดึงจาก phases แล้วรวมเป็นรายงบโครงการ
-============================================================================= */
-$inQuarterCondition = "
-  (
-    (p.payment_date IS NOT NULL AND p.payment_date BETWEEN :qStart AND :qEnd)
-    OR
-    (p.payment_date IS NULL AND p.completion_date IS NOT NULL AND p.completion_date BETWEEN :qStart AND :qEnd)
-    OR
-    (p.payment_date IS NULL AND p.completion_date IS NULL AND p.due_date BETWEEN :qStart AND :qEnd)
-  )
-";
+// (1) ฐานงบที่จ้างของ “ปีที่เลือก” = SUM(budget_detail.requested_amount) ทุกโครงการในปีนั้น
+$stmtYearRequestedDetail = $pdo->prepare("
+    SELECT COALESCE(SUM(bd.requested_amount),0) AS total_req_detail
+    FROM budget_detail bd
+    JOIN budget_items bi ON bi.id = bd.budget_item_id
+    WHERE bi.fiscal_year = :fy
+");
+$stmtYearRequestedDetail->execute([':fy' => $selectedYear]);
+$yearTotalRequestedDetail = (float)$stmtYearRequestedDetail->fetchColumn(); // ตัวหารของ % ในตารางไตรมาส
 
+// (2) ยอดจ่ายตามไตรมาส (อิง phases.payment_date) รวมตามงบโครงการ
 $sqlQuarterFromPhases = "
   SELECT
-    bi.id AS budget_item_id,
-    MAX(bi.item_name) AS item_name,
-    SUM(p.amount) AS phase_sum,
-    SUM(CASE WHEN p.payment_date BETWEEN :qStart AND :qEnd THEN p.amount ELSE 0 END) AS paid_sum
+    bi.id                        AS budget_item_id,
+    MAX(bi.item_name)           AS item_name,
+    COALESCE(SUM(p.amount), 0)  AS paid_sum
   FROM phases p
   JOIN contracts c      ON p.contract_detail_id = c.contract_id
   JOIN budget_detail bd ON c.detail_item_id     = bd.id_detail
   JOIN budget_items bi  ON bd.budget_item_id    = bi.id
   WHERE bi.fiscal_year = :baseFY
-    AND {$inQuarterCondition}
+    AND p.payment_date BETWEEN :qStart AND :qEnd
   GROUP BY bi.id
   ORDER BY item_name ASC
 ";
 
 $stmtQ = $pdo->prepare($sqlQuarterFromPhases);
 $stmtQ->execute([
-  ':baseFY' => $baseFiscalYearForTable,  // ปีงบถัดไป
+  ':baseFY' => $baseFiscalYearForTable,
   ':qStart' => $qStart,
   ':qEnd'   => $qEnd,
 ]);
 $rowsAgg = $stmtQ->fetchAll(PDO::FETCH_ASSOC);
 
-$grand_phase_sum = array_sum(array_map(fn($r)=> (float)$r['phase_sum'], $rowsAgg));
+// รวมยอดจ่ายทั้งหมดในไตรมาส (เพื่อแสดง)
 $grand_paid_sum  = array_sum(array_map(fn($r)=> (float)$r['paid_sum'],  $rowsAgg));
-$grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) * 100 : 0;
+
+// % รวมทั้งตารางเมื่อเทียบ “งบที่จ้างทั้งปี”
+$grand_percent_against_year_req = ($yearTotalRequestedDetail > 0)
+    ? ($grand_paid_sum / $yearTotalRequestedDetail * 100)
+    : 0;
+// ✅ รวมงบตาม พ.ร.บ. (จากคอลัมน์ budget_act_amount)
+$stmtAct = $pdo->prepare("SELECT COALESCE(SUM(budget_act_amount),0) FROM budget_act WHERE fiscal_year = ?");
+$stmtAct->execute([$selectedYear]);
+$totalActAmount = (float)$stmtAct->fetchColumn();
+
+// ✅ คำนวณงบคงเหลือที่ (requested_amount - ใช้จ่ายตามโครงการ)
+$totalRemainAct = max(0, $totalActAmount - $totalRequested);
 
 ?>
 <!DOCTYPE html>
@@ -208,6 +225,7 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
         .table thead th { white-space: nowrap; }
         .filter-note { font-size: 0.85rem; color:#6c757d; }
         .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+        
     </style>
 </head>
 <body>
@@ -241,23 +259,50 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
             <input type="hidden" name="quarter" value="<?php echo (int)$quarter; ?>">
         </form>
 
-        <!-- การ์ดสรุปรวมทั้งปี (ใช้จ่ายแล้วจาก phases) -->
+        <!-- การ์ดสรุปรวมทั้งปี -->
         <div class="row text-center mb-4">
-            <div class="col-md-12">
-                <div class="card p-3 bg-blue-800 text-white">
-                    <h4>งบตาม พรบ.</h4>
+             <div class="col-md-6">
+      <div class="card p-3 bg-purple-700 text-white">
+         <h4>งบตาม พ.ร.บ.</h4>
+        <h2><?php echo number_format($totalActAmount,2); ?> บาท</h2>
+        
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card p-3 bg-blue-800  text-white">
+        <h4>งบที่ใช้ตามโครงการ</h4>
+        <h2><?php echo number_format($totalRemainAct,2); ?> บาท</h2>
+      </div>
+    </div>
+        </div>
+        <div class="row text-center mb-4">
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-600 text-white">
+                    <h4>งบตามโครงการ</h4>
                     <h2><?php echo number_format($totalRequested); ?> บาท</h2>
                 </div>
             </div>
-        </div>
-        <div class="row text-center mb-4">
-            <div class="col-md-3"><div class="card p-3 bg-blue-600 text-white"><h4>งบตามโครงการ</h4><h2><?php echo number_format($totalRequested); ?> บาท</h2></div></div>
-            <div class="col-md-3"><div class="card p-3 bg-blue-500 text-white"><h4>ใช้จ่ายตามโครงการ</h4><h2><?php echo number_format($totalApproved); ?> บาท</h2></div></div>
-            <div class="col-md-3"><div class="card p-3 bg-blue-400 text-white"><h4>คงเหลือ</h4><h2><?php echo number_format($totalRequested - $totalApproved); ?> บาท</h2></div></div>
-            <div class="col-md-3"><div class="card p-3 bg-blue-300 text-white"><h4>% ใช้จ่ายจริง</h4><h2><?php echo number_format($percentUsed, 2); ?>%</h2></div></div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-500 text-white">
+                    <h4>ใช้จ่ายตามโครงการ</h4>
+                    <h2><?php echo number_format($totalUsedAll); ?> บาท</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-400 text-white">
+                    <h4>คงเหลือ</h4>
+                    <h2><?php echo number_format(max(0, $totalRequested - $totalUsedAll)); ?> บาท</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-300 text-white">
+                    <h4>% ใช้จ่ายจริง</h4>
+                    <h2><?php echo number_format($percentUsed, 2); ?>%</h2>
+                </div>
+            </div>
         </div>
 
-        <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้วจาก phases -->
+        <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้ว (จากงวดงาน) = รวม phases แบบไม่กรองวันที่ -->
         <div class="card p-3 mb-4">
             <h4>📋 รายการงบประมาณ (ทั้งปี)</h4>  
             <table class="table table-bordered table-striped mt-3">
@@ -275,7 +320,10 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
                 <?php foreach($items as $row): 
                     $id   = (int)$row['id'];
                     $req  = (float)$row['requested_amount'];
-                    $used = isset($spentRows[$id]) ? (float)$spentRows[$id] : 0.0;
+
+                    // SUM(phases.amount) ไม่กรองวันที่
+                    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+
                     $rem  = max(0, $req - $used);
                     $pct  = $req > 0 ? ($used / $req * 100) : 0;
                 ?>
@@ -295,13 +343,14 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
             </table>
         </div>
 
-        <!-- ====================== บล็อกไตรมาส (ดึงจาก phases) ====================== -->
+        <!-- ====================== บล็อกไตรมาส (ดึงจาก phases.payment_date) ====================== -->
         <div class="card p-3 mb-4">
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
                 <div>
-                    <h4 class="mb-0">🗓️ รายการงบประมาณตามไตรมาส (ดึงจากงวดงาน phases)</h4>
+                    <h4 class="mb-0">🗓️ รายการงบประมาณตามไตรมาส (อิง payment_date)</h4>
                     <div class="filter-note mt-1">
-                        ปีฐานตาราง (จากงบโครงการ): <span class="text-success"><?php echo htmlspecialchars($baseFiscalYearForTable); ?></span>
+                        ปีฐานตาราง: <span class="text-success"><?php echo htmlspecialchars($baseFiscalYearForTable); ?></span> |
+                        ฐานคิด % = งบที่จ้างทั้งปีจาก <span class="mono">budget_detail.requested_amount</span>
                     </div>
                 </div>
                 <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
@@ -311,9 +360,9 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
                     <label for="quarter" class="mb-0">ไตรมาส (สะสม):</label>
                     <select id="quarter" name="quarter" class="form-select w-auto" onchange="this.form.submit()">
                         <option value="1" <?php echo $quarter===1?'selected':''; ?>>ไตรมาส 1 (ต.ค.–ธ.ค.)</option>
-                        <option value="2" <?php echo $quarter===2?'selected':''; ?>>ไตรมาส 2 (ต.ค.–มี.ค.)</option>
-                        <option value="3" <?php echo $quarter===3?'selected':''; ?>>ไตรมาส 3 (ต.ค.–มิ.ย.)</option>
-                        <option value="4" <?php echo $quarter===4?'selected':''; ?>>ไตรมาส 4 (ต.ค.–ก.ย.)</option>
+                        <option value="2" <?php echo $quarter===2?'selected':''; ?>>ไตรมาส 2 (ม.ค.–มี.ค.)</option>
+                        <option value="3" <?php echo $quarter===3?'selected':''; ?>>ไตรมาส 3 (เม.ย.–มิ.ย.)</option>
+                        <option value="4" <?php echo $quarter===4?'selected':''; ?>>ไตรมาส 4 (ก.ค.–ก.ย.)</option>
                     </select>
                 </form>
             </div>
@@ -321,65 +370,62 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
             <div class="mt-2 text-muted">
                 <small>
                     ช่วงเดือน (สะสมถึงไตรมาส <?php echo $quarter; ?>): <?php echo $quarterMonthsMap[$quarter]; ?> |
-                    ใช้วันอ้างอิง <em>payment → completion → due</em> ในช่วง
-                    <strong><?php echo $qStart; ?> → <?php echo $qEnd; ?></strong>
+                    อ้างอิงเฉพาะ <em>phases.payment_date</em> ในช่วง
+                    <strong><?php echo $qStart; ?> → <?php echo $qEnd; ?></strong> |
+                    งบที่จ้างทั้งปี: <strong><?php echo number_format($yearTotalRequestedDetail, 2); ?></strong> บาท
                 </small>
             </div>
 
             <!-- การ์ดสรุปรวมของบล็อกไตรมาส -->
             <div class="row text-center mt-3">
-                <div class="col-md-4"><div class="card p-3 bg-blue-600 text-white"><h6 class="mb-1">ยอดงวด (รวม)</h6><div class="fs-5"><?php echo number_format($grand_phase_sum, 2); ?> บาท</div></div></div>
-                <div class="col-md-4"><div class="card p-3 bg-blue-500 text-white"><h6 class="mb-1">ยอดที่จ่ายแล้ว</h6><div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div></div></div>
-                <div class="col-md-4"><div class="card p-3 bg-blue-400 text-white"><h6 class="mb-1">% จ่ายแล้ว</h6><div class="fs-5"><?php echo number_format($grand_percent, 2); ?>%</div></div></div>
+                <div class="col-md-4"><div class="card p-3 bg-blue-600 text-white"><h6 class="mb-1">ยอดจ่าย (รวมในไตรมาส)</h6><div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div></div></div>
+                <div class="col-md-4"><div class="card p-3 bg-blue-500 text-white"><h6 class="mb-1">งบที่จ้างทั้งปี</h6><div class="fs-5"><?php echo number_format($yearTotalRequestedDetail, 2); ?> บาท</div></div></div>
+                <div class="col-md-4"><div class="card p-3 bg-blue-400 text-white"><h6 class="mb-1">% จ่ายแล้ว (ไตรมาสนี้เทียบงบทั้งปี)</h6><div class="fs-5"><?php echo number_format($grand_percent_against_year_req, 2); ?>%</div></div></div>
             </div>
 
-            <!-- ตารางรวมยอดตาม “งบโครงการ (budget_item_id + item_name)” จาก phases -->
+            <!-- ตารางรวมยอดตาม “งบโครงการ (budget_item_id + item_name)” จาก phases.payment_date -->
             <div class="table-responsive">
                 <table class="table table-bordered table-striped mt-3">
                     <thead class="table-dark">
                         <tr>
-                            <th class="mono">budget_item_id</th>
-                            <th>ประเภทงบ (item_name)</th>
-                            <th>ยอดงวด (รวม)</th>
-                            <th>ยอดที่จ่ายแล้ว</th>
-                            <th>% จ่ายแล้ว</th>
+                            <th>ประเภทงบ</th>
+                            <th>ยอดจ่าย (จาก phases.amount)</th>
+                            <th>% จ่ายแล้ว (เทียบงบทั้งปี)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ($rowsAgg): ?>
                             <?php foreach ($rowsAgg as $r):
-                                $phase_sum = (float)$r['phase_sum'];
-                                $paid_sum  = (float)$r['paid_sum'];
-                                $pct       = $phase_sum > 0 ? ($paid_sum / $phase_sum * 100) : 0;
+                                $paid_sum  = (float)$r['paid_sum']; // จ่ายของรายการนี้ภายในไตรมาส
+                                $pct_against_year_req = ($yearTotalRequestedDetail > 0)
+                                    ? ($paid_sum / $yearTotalRequestedDetail * 100)
+                                    : 0;
                             ?>
                                 <tr>
-                                    <td class="mono"><?php echo htmlspecialchars($r['budget_item_id']); ?></td>
                                     <td><?php echo htmlspecialchars($r['item_name'] ?? ''); ?></td>
-                                    <td><?php echo number_format($phase_sum, 2); ?></td>
                                     <td><?php echo number_format($paid_sum, 2); ?></td>
-                                    <td><?php echo number_format($pct, 2); ?>%</td>
+                                    <td><?php echo number_format($grand_percent_against_year_req, 2); ?>%</td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" class="text-center text-muted">ไม่พบข้อมูลในไตรมาสที่เลือก</td></tr>
+                            <tr><td colspan="3" class="text-center text-muted">ไม่พบข้อมูลในไตรมาสที่เลือก</td></tr>
                         <?php endif; ?>
                     </tbody>
-                    <?php if ($rowsAgg && count($rowsAgg) > 1): ?>
+                    <?php if ($rowsAgg): ?>
                         <tfoot>
                             <tr class="table-secondary fw-bold">
-                                <td colspan="2">รวมทั้งหมด</td>
-                                <td><?php echo number_format($grand_phase_sum, 2); ?></td>
+                                <td>รวมทั้งหมด</td>
                                 <td><?php echo number_format($grand_paid_sum, 2); ?></td>
-                                <td><?php echo number_format($grand_percent, 2); ?>%</td>
+                                <td><?php echo number_format($grand_percent_against_year_req, 2); ?>%</td>
                             </tr>
                         </tfoot>
                     <?php endif; ?>
                 </table>
             </div>
         </div>
-        <!-- ====================== จบ: บล็อกไตรมาส (phases) ====================== -->
+        <!-- ====================== จบ: บล็อกไตรมาส ====================== -->
 
-        <!-- กราฟ (อิงทั้งปี) -->
+        <!-- กราฟ (อิงทั้งปี: อิงช่วงปีงบ) -->
         <div class="chart-container">
             <div class="chart-box" style="flex: 2%;">
                 <div class="d-flex justify-content-between align-items-center">
@@ -393,7 +439,7 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
                 </div>
                 <canvas id="budgetChart"></canvas>
             </div>
-            <div class="chart-box" style="flex: 1;">
+            <div class="chart-box" style="flex: 1%;">
                 <h5 class="text-center">สัดส่วนงบประมาณตามประเภท (%)</h5>
                 <canvas id="pieChart"></canvas>
             </div>
@@ -416,7 +462,7 @@ $grand_percent   = $grand_phase_sum > 0 ? ($grand_paid_sum / $grand_phase_sum) *
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // ====== ข้อมูลกราฟ (ทั้งปี) — approved/remaining คิดจาก phases ======
+    // ====== ข้อมูลกราฟ (ทั้งปี) — approved/remaining คิดจากช่วงปีงบ ======
     const labels     = <?php echo $itemNames ?: '[]'; ?>;
     const requested  = <?php echo $requested ?: '[]'; ?>;
     const approved   = <?php echo $approved ?: '[]'; ?>;
