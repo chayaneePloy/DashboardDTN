@@ -1,6 +1,6 @@
 <?php
-session_start();
-if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
+//session_start();
+//if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
 include 'db.php';
 
 $cid = intval($_GET['contract_id'] ?? 0);

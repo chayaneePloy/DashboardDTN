@@ -19,7 +19,7 @@ $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", ""
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // ---------------- ปีงบประมาณทั้งหมด (จาก budget_items) ----------------
-$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
+$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 if (!$years) { $years = [date('Y') + 543]; } // fallback เป็นปี พ.ศ. ปัจจุบัน
 
 // ปีงบประมาณที่เลือก (คุมทั้งหน้า) — *หมายเหตุ*: ถือว่า fiscal_year ใน DB เป็น "พ.ศ."
@@ -225,22 +225,77 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
         .table thead th { white-space: nowrap; }
         .filter-note { font-size: 0.85rem; color:#6c757d; }
         .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+        /* เพิ่มเอฟเฟกต์เมื่อ hover */
+.navbar {
+  transition: all 0.3s ease-in-out;
+}
+
+/* ปรับลิงก์ใน Navbar */
+.navbar-nav .nav-link {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+/* เส้นขีดใต้เวลา hover */
+.navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  left: 0;
+  bottom: 0;
+  background-color: #ffffff;
+  transition: width 0.3s;
+}
+
+.navbar-nav .nav-link:hover::after {
+  width: 100%;
+}
+
+/* เปลี่ยนสีพื้นหลังเมื่อ hover */
+.navbar-nav .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+/* ปุ่มสวยขึ้นและมีเงา */
+.btn-success {
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success:hover {
+  background-color: #28a745;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ปรับโลโก้ */
+.navbar-brand {
+  letter-spacing: 0.5px;
+}
         
     </style>
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-      <div class="container-fluid">
-        <a class="navbar-brand fs-3" href="#">Dashboard</a>
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item"><a class="nav-link active fs-5 text-white" href="dashboard_report.php">การจ่ายงวด (Phases)</a></li>
-        </ul>
-        <div class="d-flex">
-          <a href="dashboard.php" class="btn btn-success btn-lg">เพิ่มงบประมาณ</a>
-        </div>
-      </div>
-    </nav>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fs-3 fw-bold" href="#">Dashboard</a>
+    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+         <li class="nav-item">
+        <a class="nav-link active fs-5 text-white px-3" href="add_budget_act.php">เพิ่มงบตาม พ.ร.บ.</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link fs-5 text-white px-3" href="dashboard.php">เพิ่มงบประมาณ</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link fs-5 text-white px-3" href="dashboard_report.php">เพิ่มการจ่ายงวดงาน</a>
+      </li>
+     
+    </ul>
+   </div>
+</nav>
 
     <div class="container my-4">
         <h2 class="text-center mb-4">📊 Dashboard งบประมาณโครงการ IT (ปี <?php echo htmlspecialchars($selectedYear); ?>)</h2>
@@ -270,7 +325,7 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
     </div>
     <div class="col-md-6">
       <div class="card p-3 bg-blue-800  text-white">
-        <h4>งบที่ใช้ตามโครงการ</h4>
+        <h4>งบคงเหลือตาม พ.ร.บ.</h4>
         <h2><?php echo number_format($totalRemainAct,2); ?> บาท</h2>
       </div>
     </div>
@@ -347,10 +402,10 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
         <div class="card p-3 mb-4">
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
                 <div>
-                    <h4 class="mb-0">🗓️ รายการงบประมาณตามไตรมาส (อิง payment_date)</h4>
+                    <h4 class="mb-0">🗓️ รายการงบประมาณตามไตรมาส</h4>
                     <div class="filter-note mt-1">
                         ปีฐานตาราง: <span class="text-success"><?php echo htmlspecialchars($baseFiscalYearForTable); ?></span> |
-                        ฐานคิด % = งบที่จ้างทั้งปีจาก <span class="mono">budget_detail.requested_amount</span>
+                        ฐานคิด % = งบที่จ้างทั้งปีจาก 
                     </div>
                 </div>
                 <form method="GET" class="d-flex flex-wrap align-items-center gap-2">

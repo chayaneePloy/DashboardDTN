@@ -236,11 +236,6 @@ if ($method === 'POST') {
         </div>
 
         <div class="col-md-4">
-          <label class="form-label">ชื่อ (Phase Name)</label>
-          <input type="text" class="form-control" name="phase_name" value="<?= h($_POST['phase_name'] ?? '') ?>">
-        </div>
-
-        <div class="col-md-4">
           <label class="form-label">จำนวนเงิน (บาท)</label>
           <input type="text" class="form-control number" name="amount" value="<?= h($_POST['amount'] ?? '0.00') ?>" required>
         </div>

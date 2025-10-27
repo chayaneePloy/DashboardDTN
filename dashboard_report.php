@@ -216,17 +216,11 @@ if (!empty($phases)) {
   </style>
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container">
-    <a class="navbar-brand fw-bold" href="#">📊 Dashboard งบประมาณโครงการ</a>
-    <div class="ms-auto">
-      <a href="index.php" class="btn btn-light back-btn me-2">
-        <i class="bi bi-house"></i> หน้าหลัก
-      </a>
-      <a href="javascript:history.back()" class="btn btn-light back-btn">
-        <i class="bi bi-arrow-left"></i> กลับหน้าก่อนหน้า
-      </a>
-    </div>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="dashboard.php">← กลับ Dashboard</a>
+    
   </div>
 </nav>
 
@@ -275,25 +269,7 @@ if (!empty($phases)) {
       </select>
     </div>
 
-    <div class="col-md-2">
-      <label class="form-label">ไตรมาส</label>
-      <select name="quarter" class="form-select" onchange="this.form.submit()">
-        <option value="">-- เลือก --</option>
-        <option value="Q1" <?= $selected_quarter==='Q1'?'selected':'' ?>>ไตรมาส 1 (ต.ค.–ธ.ค.)</option>
-        <option value="Q2" <?= $selected_quarter==='Q2'?'selected':'' ?>>ไตรมาส 2 (ม.ค.–มี.ค.)</option>
-        <option value="Q3" <?= $selected_quarter==='Q3'?'selected':'' ?>>ไตรมาส 3 (เม.ย.–มิ.ย.)</option>
-        <option value="Q4" <?= $selected_quarter==='Q4'?'selected':'' ?>>ไตรมาส 4 (ก.ค.–ก.ย.)</option>
-      </select>
-    </div>
-
-    <div class="col-md-2">
-      <label class="form-label">จากวันที่</label>
-      <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="form-control">
-    </div>
-    <div class="col-md-2">
-      <label class="form-label">ถึงวันที่</label>
-      <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="form-control">
-    </div>
+   
 
     <div class="col-12">
       <button type="submit" class="btn btn-primary">ค้นหา</button>

@@ -1,55 +1,51 @@
 <?php
-session_start();
-if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
 include 'db.php';
 
-if(!isset($_GET['id'])){ header("Location: dashboard.php"); exit; }
+$id = $_GET['id'] ?? null;
+if (!$id) { header("Location: index.php"); exit; }
 
-$id = intval($_GET['id']);
-
-// ดึงข้อมูล item
+// ---------------- ดึงข้อมูลงบหลัก ----------------
 $stmt = $pdo->prepare("SELECT * FROM budget_items WHERE id = ?");
 $stmt->execute([$id]);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$item) { die("ไม่พบข้อมูลงบประมาณหลัก"); }
 
-if(!$item){ header("Location: dashboard.php"); exit; }
+// ---------------- ดึงรายการงบย่อยทั้งหมด ----------------
+$details = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
+$details->execute([$id]);
+$details = $details->fetchAll(PDO::FETCH_ASSOC);
 
-// ดึง details
-$stmt = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
-$stmt->execute([$id]);
-$details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// ---------------- ลบงบย่อย ----------------
+if (isset($_GET['delete_detail'])) {
+    $detail_id = intval($_GET['delete_detail']);
+    $pdo->prepare("DELETE FROM budget_detail WHERE id_detail = ?")->execute([$detail_id]);
+    header("Location: edit_budget_item.php?id=$id");
+    exit;
+}
 
-// อัปเดต item
-if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    $item_name = trim($_POST['item_name']);
-    $requested_amount_item = floatval($_POST['requested_amount_item']);
-    $approved_amount_item = floatval($_POST['approved_amount_item']);
-    $fiscal_year_item = intval($_POST['fiscal_year_item']);
+// ---------------- แก้ไขงบย่อย ----------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_detail'])) {
+    $detail_id = $_POST['id_detail'];
+    $detail_name = $_POST['detail_name'];
+    $requested_amount = $_POST['requested_amount'];
+    $description = $_POST['description'];
 
-    // อัปเดต budget_items
-    $stmt = $pdo->prepare("UPDATE budget_items SET item_name=?, requested_amount=?, approved_amount=?, fiscal_year=? WHERE id=?");
-    $stmt->execute([$item_name, $requested_amount_item, $approved_amount_item, $fiscal_year_item, $id]);
+    $stmt = $pdo->prepare("UPDATE budget_detail SET detail_name=?, requested_amount=?, description=? WHERE id_detail=?");
+    $stmt->execute([$detail_name, $requested_amount, $description, $detail_id]);
 
-    // อัปเดตหรือเพิ่ม budget_detail
-    if(!empty($_POST['detail_name'])){
-        foreach($_POST['detail_name'] as $index => $detail_name){
-            $detail_id = intval($_POST['detail_id'][$index]);
-            $requested_amount = floatval($_POST['requested_amount'][$index]);
-            $approved_amount = floatval($_POST['approved_amount'][$index]);
+    header("Location: edit_budget_item.php?id=$id");
+    exit;
+}
 
-            if($detail_id > 0){
-                // อัปเดต detail
-                $stmt = $pdo->prepare("UPDATE budget_detail SET detail_name=?, requested_amount=?, approved_amount=?, fiscal_year=? WHERE id_detail=?");
-                $stmt->execute([$detail_name, $requested_amount, $approved_amount, $fiscal_year_item, $detail_id]);
-            } else {
-                // เพิ่ม detail ใหม่
-                $stmt = $pdo->prepare("INSERT INTO budget_detail (budget_item_id, detail_name, requested_amount, approved_amount, fiscal_year) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$id, $detail_name, $requested_amount, $approved_amount, $fiscal_year_item]);
-            }
-        }
-    }
+// ---------------- เพิ่มงบย่อยใหม่ ----------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_detail'])) {
+    $detail_name = $_POST['detail_name'];
+    $requested_amount = $_POST['requested_amount'];
+    $description = $_POST['description'] ?? '';
 
-    header("Location: dashboard.php");
+    $insert = $pdo->prepare("INSERT INTO budget_detail (budget_item_id, detail_name, requested_amount, description) VALUES (?, ?, ?, ?)");
+    $insert->execute([$id, $detail_name, $requested_amount, $description]);
+    header("Location: edit_budget_item.php?id=$id");
     exit;
 }
 ?>
@@ -57,89 +53,95 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Edit Budget Item</title>
+<title>จัดการงบย่อยของรายการหลัก</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>body{font-family:'Sarabun',sans-serif;}</style>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
-    .detail-row { margin-bottom:10px; }
+body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
+.table th, .table td{text-align:center;vertical-align:middle;}
 </style>
-<script>
-// เพิ่ม Detail แบบ dynamic
-function addDetailRow(){
-    const container = document.getElementById('details-container');
-    container.insertAdjacentHTML('beforeend', `
-    <div class="row detail-row align-items-center">
-        <input type="hidden" name="detail_id[]" value="0">
-        <div class="col"><input type="text" name="detail_name[]" class="form-control" placeholder="Detail Name" required></div>
-        <div class="col"><input type="number" step="0.01" name="requested_amount[]" class="form-control" placeholder="Requested Amount" required></div>
-        <div class="col"><input type="number" step="0.01" name="approved_amount[]" class="form-control" placeholder="Approved Amount" required></div>
-        <div class="col-auto">
-            <button type="button" class="btn btn-danger" onclick="this.closest('.detail-row').remove()">❌</button>
-        </div>
-    </div>
-    `);
-}
-</script>
 </head>
+<body>
+
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
-    <div class="d-flex">
-      <span class="navbar-text text-white me-3">สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?></span>
-      <a href="index.php" class="btn btn-danger btn-sm">Logout</a>
-    </div>
+    <a class="navbar-brand fw-bold" href="dashboard.php">← กลับ Dashboard</a>
   </div>
 </nav>
-<body class="p-4 bg-light">
-<div class="container">
-<h2>Edit Budget Item</h2>
 
-<form method="post" class="card p-4 shadow-sm bg-white">
-    <div class="mb-3">
-        <label>Item Name</label>
-        <input type="text" name="item_name" class="form-control" value="<?= htmlspecialchars($item['item_name']) ?>" required>
+<div class="container my-5">
+  <h2 class="mb-4">📋 จัดการงบย่อยของ “<?= htmlspecialchars($item['item_name']) ?>”</h2>
+
+  <!-- ฟอร์มเพิ่มงบย่อย -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white fw-bold">➕ เพิ่มงบย่อยใหม่</div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="add_detail" value="1">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">ชื่อรายการย่อย</label>
+            <input type="text" name="detail_name" class="form-control" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">จำนวนเงิน (บาท)</label>
+            <input type="number" step="0.01" name="requested_amount" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">คำอธิบาย (ถ้ามี)</label>
+            <input type="text" name="description" class="form-control">
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-success w-100">เพิ่ม</button>
+          </div>
+        </div>
+      </form>
     </div>
-    <div class="row mb-3">
-        <div class="col">
-            <label>Requested Amount</label>
-            <input type="number" step="0.01" name="requested_amount_item" class="form-control" value="<?= $item['requested_amount'] ?>" required>
-        </div>
-        <div class="col">
-            <label>Approved Amount</label>
-            <input type="number" step="0.01" name="approved_amount_item" class="form-control" value="<?= $item['approved_amount'] ?>" required>
-        </div>
-        <div class="col">
-            <label>Fiscal Year</label>
-            <input type="number" name="fiscal_year_item" class="form-control" value="<?= $item['fiscal_year'] ?>" required>
-        </div>
+  </div>
+
+  <!-- ตารางรายการงบย่อย -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white fw-bold">🧾 รายการงบย่อยทั้งหมด</div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-striped m-0">
+        <thead class="table-dark">
+          <tr>
+            <th>ลำดับ</th>
+            <th>ชื่อรายการย่อย</th>
+            <th>จำนวนเงิน (บาท)</th>
+            <th>คำอธิบาย</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if ($details): $i=1; foreach ($details as $d): ?>
+          <tr>
+            <form method="POST">
+              <input type="hidden" name="update_detail" value="1">
+              <input type="hidden" name="id_detail" value="<?= $d['id_detail'] ?>">
+              <td><?= $i++ ?></td>
+              <td><input type="text" name="detail_name" class="form-control" value="<?= htmlspecialchars($d['detail_name']) ?>" required></td>
+              <td><input type="number" step="0.01" name="requested_amount" class="form-control text-end" value="<?= $d['requested_amount'] ?>" required></td>
+              <td><input type="text" name="description" class="form-control" value="<?= htmlspecialchars($d['description']) ?>"></td>
+              <td>
+                <div class="btn-group">
+                  <button type="submit" class="btn btn-warning btn-sm">บันทึก</button>
+                  <a href="?id=<?= $id ?>&delete_detail=<?= $d['id_detail'] ?>" 
+                     class="btn btn-danger btn-sm"
+                     onclick="return confirm('ลบรายการย่อย “<?= htmlspecialchars($d['detail_name']) ?>” หรือไม่?')">ลบ</a>
+                </div>
+              </td>
+            </form>
+          </tr>
+          <?php endforeach; else: ?>
+          <tr><td colspan="5" class="text-center text-muted">ยังไม่มีงบย่อยในรายการนี้</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
     </div>
-
-    <h5>รายละเอียด (Budget Detail)</h5>
-    <div id="details-container">
-        <?php foreach($details as $d): ?>
-        <div class="row detail-row align-items-center">
-            <input type="hidden" name="detail_id[]" value="<?= $d['id_detail'] ?>">
-            <div class="col"><input type="text" name="detail_name[]" class="form-control" value="<?= htmlspecialchars($d['detail_name']) ?>" required></div>
-            <div class="col"><input type="number" step="0.01" name="requested_amount[]" class="form-control" value="<?= $d['requested_amount'] ?>" required></div>
-            <div class="col"><input type="number" step="0.01" name="approved_amount[]" class="form-control" value="<?= $d['approved_amount'] ?>" required></div>
-            <div class="col-auto">
-                <a href="delete_detail.php?id_detail=<?= $d['id_detail'] ?>&redirect=edit_budget_item.php?id=<?= $item['id'] ?>" 
-   class="btn btn-danger" onclick="return confirm('คุณต้องการลบรายละเอียดนี้ ใช่หรือไม่?')">❌</a>
-
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-
-    <button type="button" class="btn btn-secondary mb-3" onclick="addDetailRow()">➕ เพิ่ม Detail</button>
-    <br>
-    <button type="submit" class="btn btn-primary">บันทึก</button>
-    <a href="dashboard.php" class="btn btn-secondary">ยกเลิก</a>
-</form>
-
+  </div>
 </div>
+
 </body>
 </html>

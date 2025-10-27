@@ -1,15 +1,23 @@
 <?php
-//session_start();
-//if(!isset($_SESSION['user'])){ header("Location: login.php"); exit; }
 include 'db.php';
 
-// ดึงปีทั้งหมดจาก DB
-$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
+// -------------------- ดึงปีงบประมาณทั้งหมดจาก budget_act --------------------
+$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
+if (!$years) { $years = [date('Y') + 543]; }
 
-// รับค่าปีจาก GET (ถ้ามี)
+// -------------------- รับค่าปีงบประมาณ --------------------
 $selectedYear = $_GET['year'] ?? '';
 
-// ดึงข้อมูล item ตามปี
+// -------------------- ตรวจสอบคำสั่งลบ --------------------
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $stmt = $pdo->prepare("DELETE FROM budget_items WHERE id = ?");
+    $stmt->execute([$id]);
+    header("Location: index.php?year=" . urlencode($selectedYear));
+    exit;
+}
+
+// -------------------- ดึงรายการงบประมาณ --------------------
 if ($selectedYear) {
     $stmt = $pdo->prepare("SELECT * FROM budget_items WHERE fiscal_year = ? ORDER BY id");
     $stmt->execute([$selectedYear]);
@@ -18,11 +26,10 @@ if ($selectedYear) {
     $items = $pdo->query("SELECT * FROM budget_items ORDER BY fiscal_year, id")->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// เตรียมข้อมูล chart
-$labels = $approved = $requested = [];
+// -------------------- เตรียมข้อมูลกราฟ --------------------
+$labels = $requested = [];
 foreach ($items as $item) {
     $labels[] = $item['item_name'] . ' (' . $item['fiscal_year'] . ')';
-    $approved[] = (float)$item['approved_amount'];
     $requested[] = (float)$item['requested_amount'];
 }
 ?>
@@ -30,61 +37,42 @@ foreach ($items as $item) {
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard</title>
+<title>Dashboard งบประมาณ</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>body{font-family:'Sarabun',sans-serif;}</style>
+<style>
+body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
+.navbar { transition: all 0.3s ease-in-out; }
+.navbar-nav .nav-link:hover { background-color: rgba(255,255,255,0.15); border-radius: 6px; }
+.btn-success { transition: all 0.3s ease; box-shadow: 0 3px 6px rgba(0,0,0,0.2); }
+.btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.25); }
+</style>
 </head>
-<body class="bg-light">
+<body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="#">Admin Panel</a>
-
-    <!-- ปุ่ม toggle สำหรับมือถือ -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <!-- เมนูด้านซ้าย -->
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-     
-
-        <!-- ถ้าต้องการเพิ่มเมนูอื่น ก็เพิ่ม <li> ได้ -->
-      </ul>
-
-      <!-- เมนูด้านขวา -->
-      <div class="d-flex align-items-center">
-        <!--<span class="navbar-text text-white me-3">
-          สวัสดี, <?= htmlspecialchars($_SESSION['user']) ?>
-        </span> -->
-        <a href="index.php" class="btn btn-danger btn-lg">หน้าหลัก</a>
-      </div>
+    <a class="navbar-brand fw-bold" href="index.php">← กลับ Dashboard</a>
+    <div class="d-flex">
+      <a href="add_budget_item.php" class="btn btn-success fs-5 text-white px-3">➕ เพิ่มรายการงบประมาณ</a>
     </div>
   </div>
 </nav>
 
-
 <div class="container my-4">
-
-  <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Dashboard - งบประมาณ</h2>
-    <a href="add_budget_item.php" class="btn btn-success">➕ เพิ่ม Item</a>
+    <h2>📊 Dashboard - งบประมาณ</h2>
   </div>
 
-  <!-- Filter ปี -->
+  <!-- Filter ปีงบประมาณ -->
   <form method="get" class="row g-2 mb-4">
     <div class="col-auto">
       <select name="year" class="form-select" onchange="this.form.submit()">
-        <option value="">-- แสดงทุกปี --</option>
+        <option value="">-- แสดงทุกปีงบประมาณ --</option>
         <?php foreach ($years as $y): ?>
-          <option value="<?= $y ?>" <?= $selectedYear==$y?'selected':'' ?>>
-            <?= $y ?>
-          </option>
+          <option value="<?= $y ?>" <?= $selectedYear==$y?'selected':'' ?>><?= $y ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -102,42 +90,47 @@ foreach ($items as $item) {
     </div>
   </div>
 
-  <!-- Items -->
+  <!-- ตารางแสดงรายการ -->
   <div class="row row-cols-1 row-cols-md-2 g-3">
-    <?php foreach ($items as $item):
-      $details = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
-      $details->execute([$item['id']]);
-      $details = $details->fetchAll(PDO::FETCH_ASSOC);
-    ?>
+    <?php foreach ($items as $item): ?>
     <div class="col">
       <div class="card shadow-sm h-100">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center bg-light">
           <strong><?= htmlspecialchars($item['item_name']) ?> (<?= $item['fiscal_year'] ?>)</strong>
-          <div>
+          <div class="btn-group">
             <a href="edit_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-warning">แก้ไข</a>
-            <a href="delete_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('คุณต้องการลบข้อมูลทั้งหมดจริงหรือไม่?')">ลบ</a>
+            <a href="?delete=<?= $item['id'] ?>&year=<?= urlencode($selectedYear) ?>"
+               class="btn btn-sm btn-danger"
+               onclick="return confirm('ยืนยันการลบรายการ \"<?= htmlspecialchars($item['item_name']) ?>\" หรือไม่?')">
+               ลบ
+            </a>
           </div>
         </div>
         <div class="card-body">
-          <p>
-            ขอ: <?= number_format($item['requested_amount'],2) ?> /
-            อนุมัติ: <?= number_format($item['approved_amount'],2) ?> 
-            (<?= $item['percentage'] ?>%)
-          </p>
+          <p>งบที่ขอ: <?= number_format($item['requested_amount'], 2) ?> บาท</p>
+          <?php
+            $details = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
+            $details->execute([$item['id']]);
+            $details = $details->fetchAll(PDO::FETCH_ASSOC);
+          ?>
           <ul class="list-group list-group-flush">
             <?php foreach ($details as $d): ?>
               <li class="list-group-item">
-                <?= htmlspecialchars($d['detail_name']) ?> - 
-                ขอ: <?= number_format($d['requested_amount'],2) ?> /
-                อนุมัติ: <?= number_format($d['approved_amount'],2) ?> 
-                (<?= $d['percentage'] ?>%)
+                <?= htmlspecialchars($d['detail_name']) ?> — <?= number_format($d['requested_amount'], 2) ?> บาท
               </li>
             <?php endforeach; ?>
+            <?php if (!$details): ?>
+              <li class="list-group-item text-muted">ยังไม่มีงบย่อย</li>
+            <?php endif; ?>
           </ul>
         </div>
       </div>
     </div>
     <?php endforeach; ?>
+
+    <?php if(!$items): ?>
+      <p class="text-center text-muted mt-4">ยังไม่มีข้อมูลงบประมาณในปีนี้</p>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -149,8 +142,7 @@ new Chart(ctx, {
   data: {
     labels: <?= json_encode($labels) ?>,
     datasets: [
-      { label: 'Requested', data: <?= json_encode($requested) ?>, backgroundColor: 'rgba(54, 162, 235, 0.6)' },
-      { label: 'Approved', data: <?= json_encode($approved) ?>, backgroundColor: 'rgba(75, 192, 192, 0.6)' }
+      { label: 'งบประมาณที่ขอ (บาท)', data: <?= json_encode($requested) ?>, backgroundColor: 'rgba(54,162,235,0.6)' }
     ]
   },
   options: { responsive:true, scales:{ y:{ beginAtZero:true } } }
