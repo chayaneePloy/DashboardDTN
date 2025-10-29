@@ -444,22 +444,35 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
                     <thead class="table-dark">
                         <tr>
                             <th>ประเภทงบ</th>
+                            <th>งบประมาณ</th>
                             <th>ยอดจ่าย (จาก phases.amount)</th>
+                            <th>จำนวนคงเหลือ</th>
                             <th>% จ่ายแล้ว (เทียบงบทั้งปี)</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <?php 
+                            $total_req = 0;
+                            $total_paid = 0;
+                            $total_remain = 0;
+                            ?>
                         <?php if ($rowsAgg): ?>
                             <?php foreach ($rowsAgg as $r):
                                 $paid_sum  = (float)$r['paid_sum']; // จ่ายของรายการนี้ภายในไตรมาส
+                                $remain = $req - $paid_sum;
                                 $pct_against_year_req = ($yearTotalRequestedDetail > 0)
                                     ? ($paid_sum / $yearTotalRequestedDetail * 100)
                                     : 0;
+                                $total_req += $req;
+                                $total_paid += $paid_sum;
+                                $total_remain += $remain;
                             ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($r['item_name'] ?? ''); ?></td>
+                                    <td><?php echo number_format($req, 2); ?></td>
                                     <td><?php echo number_format($paid_sum, 2); ?></td>
-                                    <td><?php echo number_format($grand_percent_against_year_req, 2); ?>%</td>
+                                    <td><?php echo number_format($remain, 2); ?></td>
+                                    <td><?php echo number_format($pct_against_year_req, 2); ?>%</td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -470,8 +483,12 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
                         <tfoot>
                             <tr class="table-secondary fw-bold">
                                 <td>รวมทั้งหมด</td>
-                                <td><?php echo number_format($grand_paid_sum, 2); ?></td>
-                                <td><?php echo number_format($grand_percent_against_year_req, 2); ?>%</td>
+                                <td><?php echo number_format($total_req, 2); ?></td>
+                                <td><?php echo number_format($total_paid, 2); ?></td>
+
+                                <td><?php echo number_format($total_remain, 2); ?></td>
+                                <td><?php echo $yearTotalRequestedDetail>0 ? number_format(($total_paid/$yearTotalRequestedDetail)*100,2) : '0'; ?>%</td>
+    </tr>
                             </tr>
                         </tfoot>
                     <?php endif; ?>
