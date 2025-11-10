@@ -168,6 +168,27 @@ $next_stmt = $pdo->prepare("
 $next_stmt->execute([':id_detail' => $id_detail]);
 $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 ?>
+<?php
+$phase_sql = "
+    SELECT p.phase_id, p.phase_name, p.amount, p.due_date, p.completion_date, p.payment_date, p.status
+    FROM phases p
+    JOIN contracts c ON p.contract_detail_id = c.contract_id
+    WHERE c.detail_item_id = :id_detail
+    ORDER BY CAST(REGEXP_SUBSTR(p.phase_name, '[0-9]+') AS UNSIGNED) ASC, p.phase_id ASC
+";
+
+$phase_st = $pdo->prepare($phase_sql);
+$phase_st->execute([':id_detail' => $id_detail]);
+$phases = $phase_st->fetchAll(PDO::FETCH_ASSOC);
+
+function thai_date_full($date) {
+    if (!$date || $date == '0000-00-00') return '';
+    $months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+               "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    $ts = strtotime($date);
+    return date('j', $ts)." ".$months[date('n', $ts)]." ".(date('Y', $ts)+543);
+}
+?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -396,6 +417,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 </div>
 
 <!-- Modal: เพิ่มขั้นตอน -->
+
 <div class="modal fade" id="addStepModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -445,8 +467,51 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
         </div>
       </form>
     </div>
+    </div>
+</div>
+<!-- ✅ ตาราง phases ที่เพิ่มใหม่ -->
+<div class="container">
+<div class="card shadow-sm mt-5">
+  <div class="card-header bg-success text-white fw-bold">💰 งวดงานของโครงการ (Phases)</div>
+  <div class="card-body p-0">
+    <table class="table table-bordered table-striped m-0 text-center align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>งวด/ชื่อ</th>
+          <th>Due Date (พ.ศ.)</th>
+          <th>Completion Date (พ.ศ.)</th>
+          <th>วันที่จ่าย (พ.ศ.)</th>
+          <th>จำนวนเงิน (บาท)</th>
+          <th>สถานะ</th>
+          <th>แก้ไข</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php if($phases): foreach($phases as $p): ?>
+        <tr>
+          <td><?= htmlspecialchars($p['phase_name']) ?></td>
+          <td><?= thai_date_full($p['due_date']) ?></td>
+          <td><?= thai_date_full($p['completion_date']) ?></td>
+          <td><?= thai_date_full($p['payment_date']) ?></td>
+          <td class="text-end"><?= number_format($p['amount'],2) ?></td>
+          <td><?= htmlspecialchars($p['status']) ?></td>
+          <td>
+            <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
+              <i class="bi bi-pencil-square"></i>
+            </a>
+          </td>
+        </tr>
+      <?php endforeach; else: ?>
+        <tr><td colspan="7" class="text-muted">ไม่มีข้อมูลงวดงานของโครงการนี้</td></tr>
+      <?php endif; ?>
+      </tbody>
+    </table>
   </div>
 </div>
+</div>
+</div> <!-- ปิด container -->
+
+
 
 <!-- Footer -->
 <footer class="bg-dark text-white text-center py-3 mt-5">

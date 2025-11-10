@@ -99,13 +99,15 @@ if ($selected_year && $selected_item) {
         array_push($params, $filterStart, $filterEnd, $filterStart, $filterEnd, $filterStart, $filterEnd);
     }
 
-    // จัดเรียง: งบประมาณ > โครงการ > วัน
-    $query .= "
-        ORDER BY 
-            bi.item_name ASC, 
-            bd.detail_name ASC, 
-            COALESCE(p.payment_date, p.completion_date, p.due_date) ASC
-    ";
+      // จัดเรียง: งบประมาณ > โครงการ > เลขงวด (ถ้ามี) > วัน
+$query .= "
+    ORDER BY 
+        bi.item_name ASC, 
+        bd.detail_name ASC, 
+        CAST(REGEXP_SUBSTR(p.phase_name, '[0-9]+') AS UNSIGNED) ASC,
+        COALESCE(p.payment_date, p.completion_date, p.due_date) ASC
+";
+
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
@@ -219,7 +221,7 @@ if (!empty($phases)) {
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="dashboard.php">← กลับ Dashboard</a>
+    <a class="navbar-brand fw-bold" href="index.php">← กลับ Dashboard</a>
     
   </div>
 </nav>
