@@ -83,12 +83,7 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
     <?php endif; ?>
   </form>
 
-  <!-- Chart -->
-  <div class="card mb-4 shadow-sm">
-    <div class="card-body">
-      <canvas id="budgetChart" height="100"></canvas>
-    </div>
-  </div>
+ 
 
   <!-- ตารางแสดงรายการ -->
   <div class="row row-cols-1 row-cols-md-2 g-3">
@@ -98,16 +93,24 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
         <div class="card-header d-flex justify-content-between align-items-center bg-light">
           <strong><?= htmlspecialchars($item['item_name']) ?> (<?= $item['fiscal_year'] ?>)</strong>
           <div class="btn-group">
-            <a href="edit_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-warning">แก้ไข</a>
-            <a href="?delete=<?= $item['id'] ?>&year=<?= urlencode($selectedYear) ?>"
-               class="btn btn-sm btn-danger"
-               onclick="return confirm('ยืนยันการลบรายการ \"<?= htmlspecialchars($item['item_name']) ?>\" หรือไม่?')">
-               ลบ
-            </a>
+            <a href="edit_budget_item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-warning">เพิ่ม/แก้ไข/ลบ</a>
           </div>
         </div>
         <div class="card-body">
-          <p>งบที่ขอ: <?= number_format($item['requested_amount'], 2) ?> บาท</p>
+          <?php
+    // ดึงงบย่อยทั้งหมด
+    $details = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
+    $details->execute([$item['id']]);
+    $details = $details->fetchAll(PDO::FETCH_ASSOC);
+
+    // คำนวณยอดรวม requested_amount
+    $sumRequested = 0;
+    foreach ($details as $d) {
+        $sumRequested += (float)$d['requested_amount'];
+    }
+        ?>
+        <p>งบที่จ้าง (รวมทั้งหมด): <?= number_format($sumRequested, 2) ?> บาท</p>
+
           <?php
             $details = $pdo->prepare("SELECT * FROM budget_detail WHERE budget_item_id = ?");
             $details->execute([$item['id']]);
@@ -133,6 +136,14 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
     <?php endif; ?>
   </div>
 </div>
+
+  <div class="container">
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <canvas id="budgetChart" height="100"></canvas>
+    </div>
+  </div>
+  </div>
 
 <!-- Chart Script -->
 <script>

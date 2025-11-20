@@ -27,11 +27,12 @@ if (isset($_GET['delete_detail'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_detail'])) {
     $detail_id = $_POST['id_detail'];
     $detail_name = $_POST['detail_name'];
+    $budget_received = $_POST['budget_received'];
     $requested_amount = $_POST['requested_amount'];
     $description = $_POST['description'];
 
-    $stmt = $pdo->prepare("UPDATE budget_detail SET detail_name=?, requested_amount=?, description=? WHERE id_detail=?");
-    $stmt->execute([$detail_name, $requested_amount, $description, $detail_id]);
+    $stmt = $pdo->prepare("UPDATE budget_detail SET detail_name=?, budget_received=?, requested_amount=?, description=? WHERE id_detail=?");
+    $stmt->execute([$detail_name, $budget_received , $requested_amount, $description, $detail_id]);
 
     header("Location: edit_budget_item.php?id=$id");
     exit;
@@ -40,14 +41,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_detail'])) {
 // ---------------- เพิ่มงบย่อยใหม่ ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_detail'])) {
     $detail_name = $_POST['detail_name'];
+    $budget_received =$_POST['budget_received'];
     $requested_amount = $_POST['requested_amount'];
     $description = $_POST['description'] ?? '';
 
-    $insert = $pdo->prepare("INSERT INTO budget_detail (budget_item_id, detail_name, requested_amount, description) VALUES (?, ?, ?, ?)");
-    $insert->execute([$id, $detail_name, $requested_amount, $description]);
+    $insert = $pdo->prepare("INSERT INTO budget_detail (budget_item_id, detail_name, budget_received, requested_amount, description) VALUES (?, ?, ?, ?, ?)");
+    $insert->execute([$id, $detail_name, $budget_received, $requested_amount, $description]);
+    header("Location: edit_budget_item.php?id=$id");
+    exit;
+}// ---------------- บันทึกทั้งหมด ----------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all'])) {
+
+    $ids = $_POST['id_detail'];
+    $names = $_POST['detail_name'];
+    $budgets = $_POST['budget_received'];
+    $requests = $_POST['requested_amount'];
+    $descs = $_POST['description'];
+
+    $stmt = $pdo->prepare("
+        UPDATE budget_detail 
+        SET detail_name=?, budget_received=?, requested_amount=?, description=?
+        WHERE id_detail=?
+    ");
+
+    for ($i = 0; $i < count($ids); $i++) {
+        $stmt->execute([
+            $names[$i],
+            $budgets[$i],
+            $requests[$i],
+            $descs[$i],
+            $ids[$i]
+        ]);
+    }
+
     header("Location: edit_budget_item.php?id=$id");
     exit;
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -84,11 +114,15 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
             <label class="form-label">ชื่อรายการย่อย</label>
             <input type="text" name="detail_name" class="form-control" required>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">จำนวนเงิน (บาท)</label>
+             <div class="col-md-2">
+            <label class="form-label">งบที่ได้รับ (บาท)</label>
+            <input type="number" step="0.01" name="budget_received" class="form-control" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">ราคาจ้าง (บาท)</label>
             <input type="number" step="0.01" name="requested_amount" class="form-control" required>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label class="form-label">คำอธิบาย (ถ้ามี)</label>
             <input type="text" name="description" class="form-control">
           </div>
@@ -100,48 +134,62 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
     </div>
   </div>
 
-  <!-- ตารางรายการงบย่อย -->
+  <form method="POST">
+    <input type="hidden" name="save_all" value="1">
   <div class="card shadow-sm">
     <div class="card-header bg-primary text-white fw-bold">🧾 รายการงบย่อยทั้งหมด</div>
-    <div class="card-body p-0">
-      <table class="table table-bordered table-striped m-0">
+    <table class="table table-bordered table-striped m-0">
         <thead class="table-dark">
-          <tr>
-            <th>ลำดับ</th>
-            <th>ชื่อรายการย่อย</th>
-            <th>จำนวนเงิน (บาท)</th>
-            <th>คำอธิบาย</th>
-            <th>จัดการ</th>
-          </tr>
+            <tr>
+                <th>ลำดับ</th>
+                <th>ชื่อรายการย่อย</th>
+                <th>งบที่ได้รับ (บาท)</th>
+                <th>ราคาจ้าง (บาท)</th>
+                <th>คำอธิบาย</th>
+                <th>จัดการ</th>
+            </tr>
         </thead>
         <tbody>
-          <?php if ($details): $i=1; foreach ($details as $d): ?>
-          <tr>
-            <form method="POST">
-              <input type="hidden" name="update_detail" value="1">
-              <input type="hidden" name="id_detail" value="<?= $d['id_detail'] ?>">
-              <td><?= $i++ ?></td>
-              <td><input type="text" name="detail_name" class="form-control" value="<?= htmlspecialchars($d['detail_name']) ?>" required></td>
-              <td><input type="number" step="0.01" name="requested_amount" class="form-control text-end" value="<?= $d['requested_amount'] ?>" required></td>
-              <td><input type="text" name="description" class="form-control" value="<?= htmlspecialchars($d['description']) ?>"></td>
-              <td>
-                <div class="btn-group">
-                  <button type="submit" class="btn btn-warning btn-sm">บันทึก</button>
-                  <a href="?id=<?= $id ?>&delete_detail=<?= $d['id_detail'] ?>" 
-                     class="btn btn-danger btn-sm"
-                     onclick="return confirm('ลบรายการย่อย “<?= htmlspecialchars($d['detail_name']) ?>” หรือไม่?')">ลบ</a>
-                </div>
-              </td>
-            </form>
-          </tr>
-          <?php endforeach; else: ?>
-          <tr><td colspan="5" class="text-center text-muted">ยังไม่มีงบย่อยในรายการนี้</td></tr>
-          <?php endif; ?>
+        <?php if ($details): $i=1; foreach ($details as $d): ?>
+            <tr>
+                <td><?= $i++ ?></td>
+
+                <input type="hidden" name="id_detail[]" value="<?= $d['id_detail'] ?>">
+
+                <td><input type="text" name="detail_name[]" class="form-control"
+                    value="<?= htmlspecialchars($d['detail_name']) ?>"></td>
+
+                <td><input type="number" step="0.01" name="budget_received[]" class="form-control text-end"
+                    value="<?= $d['budget_received'] ?>"></td>
+
+                <td><input type="number" step="0.01" name="requested_amount[]" class="form-control text-end"
+                    value="<?= $d['requested_amount'] ?>"></td>
+
+                <td><input type="text" name="description[]" class="form-control"
+                    value="<?= htmlspecialchars($d['description']) ?>"></td>
+
+                <td>
+                    <a href="?id=<?= $id ?>&delete_detail=<?= $d['id_detail'] ?>"
+                       class="btn btn-danger btn-sm"
+                       onclick="return confirm('ลบรายการย่อย “<?= htmlspecialchars($d['detail_name']) ?>” หรือไม่?')">ลบ</a>
+                </td>
+            </tr>
+        <?php endforeach; endif; ?>
         </tbody>
-      </table>
+    </table>
+
+    <!-- ปุ่มบันทึกทั้งหมด -->
+    <div class="text-end p-2">
+        <button type="submit" class="btn btn-success btn-sm">
+            💾 บันทึกทั้งหมด
+        </button>
     </div>
-  </div>
-</div>
+        </div>
+        </div>
+</form>
+
+  
+
 
 </body>
 </html>

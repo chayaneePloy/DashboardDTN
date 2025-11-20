@@ -3,11 +3,10 @@ include 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $_POST['item_name'];
-    $amount = $_POST['requested_amount'];
     $year = $_POST['fiscal_year'];
 
-    $stmt = $pdo->prepare("INSERT INTO budget_items (item_name, requested_amount, fiscal_year) VALUES (?, ?, ?)");
-    $stmt->execute([$name, $amount, $year]);
+    $stmt = $pdo->prepare("INSERT INTO budget_items (item_name, fiscal_year) VALUES (?, ?)");
+    $stmt->execute([$name, $year]);
 
     header("Location: index.php?year=$year");
     exit;
@@ -30,7 +29,7 @@ body { font-family:'Sarabun',sans-serif; background:#f7f9fc; }
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="index.php">← กลับ Dashboard</a>
+    <a class="navbar-brand fw-bold" href="dashboard.php">← กลับ Dashboard</a>
   </div>
 </nav>
 
@@ -48,12 +47,6 @@ body { font-family:'Sarabun',sans-serif; background:#f7f9fc; }
         <option value="งบรายจ่ายอื่น">งบรายจ่ายอื่น</option>
         <option value="งบบูรณาการ">งบบูรณาการ</option>
       </select>
-    </div>
-
-    <!-- ช่องใส่จำนวนเงิน -->
-    <div class="mb-3">
-      <label class="form-label">จำนวนเงิน (บาท)</label>
-      <input type="number" step="0.01" name="requested_amount" class="form-control" required>
     </div>
 
     <!-- ช่องกรอกปีงบประมาณ (พิมพ์เองได้) -->

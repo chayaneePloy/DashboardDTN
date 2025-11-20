@@ -170,7 +170,7 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 ?>
 <?php
 $phase_sql = "
-    SELECT p.phase_id, p.phase_name, p.amount, p.due_date, p.completion_date, p.payment_date, p.status
+    SELECT p.phase_id, p.phase_number, p.phase_name, p.amount, p.due_date, p.completion_date, p.payment_date, p.status
     FROM phases p
     JOIN contracts c ON p.contract_detail_id = c.contract_id
     WHERE c.detail_item_id = :id_detail
@@ -213,7 +213,7 @@ function thai_date_full($date) {
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="#">📊 ระบบติดตามโครงการ</a>
+    <a class="navbar-brand fw-bold" href="index.php">📊 ระบบติดตามโครงการ</a>
     <div class="ms-auto d-flex gap-2">
       <a href="steps_edit.php?id_detail=<?= $id_detail ?>" class="btn btn-light">⚙️ จัดการขั้นตอน</a>
       <a href="index.php" class="btn btn-light"><i class="bi bi-house"></i> หน้าหลัก</a>
@@ -489,17 +489,23 @@ function thai_date_full($date) {
       <tbody>
       <?php if($phases): foreach($phases as $p): ?>
         <tr>
-          <td><?= htmlspecialchars($p['phase_name']) ?></td>
-          <td><?= thai_date_full($p['due_date']) ?></td>
-          <td><?= thai_date_full($p['completion_date']) ?></td>
-          <td><?= thai_date_full($p['payment_date']) ?></td>
-          <td class="text-end"><?= number_format($p['amount'],2) ?></td>
-          <td><?= htmlspecialchars($p['status']) ?></td>
           <td>
-            <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
-              <i class="bi bi-pencil-square"></i>
-            </a>
-          </td>
+  งวดที่ <?= htmlspecialchars($p['phase_number']) ?>
+  <?php if (!empty($p['phase_name'])): ?>
+    – <?= htmlspecialchars($p['phase_name']) ?>
+  <?php endif; ?>
+</td>
+<td><?= thai_date_full($p['due_date']) ?></td>
+<td><?= thai_date_full($p['completion_date']) ?></td>
+<td><?= thai_date_full($p['payment_date']) ?></td>
+<td class="text-end"><?= number_format($p['amount'], 2) ?></td>
+<td><?= htmlspecialchars($p['status']) ?></td>
+<td>
+  <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
+    <i class="bi bi-pencil-square"></i>
+  </a>
+</td>
+
         </tr>
       <?php endforeach; else: ?>
         <tr><td colspan="7" class="text-muted">ไม่มีข้อมูลงวดงานของโครงการนี้</td></tr>

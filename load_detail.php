@@ -68,13 +68,8 @@ if ($details) {
 }
 
 // ---------------- ค่าแสดง "สรุปด้านบน" ----------------
-// งบประมาณ (ช่องบน) = budget_items.requested_amount
-$topRequested = (float) $item['requested_amount'];
-
-// ใช้จ่ายแล้ว (ช่องบน) = รวมจาก phases (ทุกโครงการภายใต้ budget_item_id นี้)
-$topApproved  = $totalPhases;
-
-// คงเหลือ + % ใช้จ่าย (ช่องบน)
+$topRequested = $totalRequested;   // ใช้งบรวมจาก budget_detail
+$topApproved  = $totalPhases;      // ใช้ยอดจ่ายจาก phases รวม
 $topRemaining = $topRequested - $topApproved;
 $topPercent   = $topRequested > 0 ? ($topApproved / $topRequested) * 100 : 0.0;
 

@@ -20,14 +20,14 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // ---------------- ปีงบประมาณทั้งหมด (จาก budget_items) ----------------
 $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
-if (!$years) { $years = [date('Y') + 543]; } // fallback เป็นปี พ.ศ. ปัจจุบัน
+if (!$years) { $years = [date('Y')]; } // fallback เป็นปี พ.ศ. ปัจจุบัน
 
 // ปีงบประมาณที่เลือก (คุมทั้งหน้า) — *หมายเหตุ*: ถือว่า fiscal_year ใน DB เป็น "พ.ศ."
 $selectedYear = isset($_GET['year']) ? intval($_GET['year']) : max($years);
 
 // ---------------- Helper: ช่วงวันที่ไตรมาส/ปีงบ (พ.ศ.) → (ค.ศ.) ----------------
 function getQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): array {
-    $gy = $fiscalBE - 543; // พ.ศ. → ค.ศ.
+    $gy = $fiscalBE; // พ.ศ. → ค.ศ.
     switch ($quarter) {
         case 1: return [($gy-1) . "-10-01", ($gy-1) . "-12-31"]; // ต.ค.–ธ.ค. (ปีก่อนหน้า)
         case 2: return [$gy . "-01-01", $gy . "-03-31"];         // ม.ค.–มี.ค.
@@ -37,7 +37,7 @@ function getQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): array {
 }
 function getCumulativeQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): array {
     // แบบสะสม (YTD): Q1=10/01~12/31, Q2=01/01~03/31, Q3=04/01~06/30, Q4=07/01~09/30
-    $gy = $fiscalBE - 543;
+    $gy = $fiscalBE;
     $start = ($gy - 1) . "-10-01"; // ต้นปีงบ (ค.ศ.) = 1 ต.ค.ของปีก่อนหน้า
     switch ($quarter) {
         case 1: $end = ($gy - 1) . "-12-31"; break;
@@ -49,7 +49,7 @@ function getCumulativeQuarterRangeForFiscalBE(int $fiscalBE, int $quarter): arra
 }
 function getFiscalYearRangeBE(int $fiscalBE): array {
     // ปีงบ พ.ศ. XXXX = 1 ต.ค. (XXXX-543-1) ถึง 30 ก.ย. (XXXX-543)
-    $gy = $fiscalBE - 543;
+    $gy = $fiscalBE ;
     return [($gy-1)."-10-01", $gy."-09-30"];
 }
 
@@ -201,6 +201,27 @@ $totalActAmount = (float)$stmtAct->fetchColumn();
 // ✅ คำนวณงบคงเหลือที่ (requested_amount - ใช้จ่ายตามโครงการ)
 $totalRemainAct = max(0, $totalActAmount - $totalRequested);
 
+// ===== งบตามโครงการ (รวมจาก budget_detail.requested_amount ทั้งปีที่เลือก) =====
+$stmtReqDetail = $pdo->prepare("
+    SELECT COALESCE(SUM(bd.requested_amount), 0) AS total_req_detail
+    FROM budget_detail bd
+    JOIN budget_items bi ON bi.id = bd.budget_item_id
+    WHERE bi.fiscal_year = :fy
+");
+$stmtReqDetail->execute([':fy' => $selectedYear]);
+$totalProjectRequested = (float)$stmtReqDetail->fetchColumn();
+
+// ---------------- งบประมาณตามโครงการ (รวมจาก budget_detail แยกตาม budget_item_id) ----------------
+$stmtSumDetailPerItem = $pdo->prepare("
+    SELECT bd.budget_item_id, SUM(bd.requested_amount) AS total_detail_amount
+    FROM budget_detail bd
+    JOIN budget_items bi ON bi.id = bd.budget_item_id
+    WHERE bi.fiscal_year = :fy
+    GROUP BY bd.budget_item_id
+");
+$stmtSumDetailPerItem->execute([':fy' => $selectedYear]);
+$sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [budget_item_id => sum(requested_amount)]
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -281,21 +302,42 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
     <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand fs-3 fw-bold" href="#">Dashboard</a>
-    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-         <li class="nav-item">
-        <a class="nav-link active fs-5 text-white px-3" href="add_budget_act.php">เพิ่มงบตาม พ.ร.บ.</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link fs-5 text-white px-3" href="dashboard.php">เพิ่มงบประมาณ</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link fs-5 text-white px-3" href="dashboard_report.php">เพิ่มการจ่ายงวดงาน</a>
-      </li>
-     
-    </ul>
-   </div>
+    <!-- โลโก้ / ชื่อระบบ -->
+    <a class="navbar-brand fs-3 fw-bold" href="index.php">Dashboard</a>
+
+    <!-- ปุ่ม Hamburger สำหรับมือถือ -->
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- เมนูที่พับได้ -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active fs-5 text-white px-3" href="add_budget_act.php">
+            เพิ่มงบตาม พ.ร.บ.
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-5 text-white px-3" href="dashboard.php">
+            เพิ่มงบประมาณ
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-5 text-white px-3" href="dashboard_report.php">
+            เพิ่มการจ่ายงวดงาน
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
 </nav>
+
 
     <div class="container my-4">
         <h2 class="text-center mb-4">📊 Dashboard งบประมาณโครงการ IT (ปี <?php echo htmlspecialchars($selectedYear); ?>)</h2>
@@ -319,42 +361,50 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
              <div class="col-md-6">
       <div class="card p-3 bg-purple-700 text-white">
          <h4>งบตาม พ.ร.บ.</h4>
-        <h2><?php echo number_format($totalActAmount,2); ?> บาท</h2>
+        <h4><?php echo number_format($totalActAmount,2); ?> บาท</h4>
         
       </div>
     </div>
     <div class="col-md-6">
       <div class="card p-3 bg-blue-800  text-white">
         <h4>งบคงเหลือตาม พ.ร.บ.</h4>
-        <h2><?php echo number_format($totalRemainAct,2); ?> บาท</h2>
+        <h4><?php echo number_format($totalRemainAct,2); ?> บาท</h4>
       </div>
     </div>
         </div>
         <div class="row text-center mb-4">
             <div class="col-md-3">
-                <div class="card p-3 bg-blue-600 text-white">
-                    <h4>งบตามโครงการ</h4>
-                    <h2><?php echo number_format($totalRequested); ?> บาท</h2>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 bg-blue-500 text-white">
-                    <h4>ใช้จ่ายตามโครงการ</h4>
-                    <h2><?php echo number_format($totalUsedAll); ?> บาท</h2>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 bg-blue-400 text-white">
-                    <h4>คงเหลือ</h4>
-                    <h2><?php echo number_format(max(0, $totalRequested - $totalUsedAll)); ?> บาท</h2>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card p-3 bg-blue-300 text-white">
-                    <h4>% ใช้จ่ายจริง</h4>
-                    <h2><?php echo number_format($percentUsed, 2); ?>%</h2>
-                </div>
-            </div>
+    <div class="card p-3 bg-blue-600 text-white">
+        <h4>งบตามโครงการ</h4>
+        <h4><?php echo number_format($totalProjectRequested, 2); ?> บาท</h4>
+    </div>
+</div>
+<div class="col-md-3">
+    <div class="card p-3 bg-blue-500 text-white">
+        <h4>ใช้จ่ายตามโครงการ</h4>
+        <h4><?php echo number_format($totalUsedAll, 2); ?> บาท</h4>
+    </div>
+</div>
+<div class="col-md-3">
+    <div class="card p-3 bg-blue-400 text-white">
+        <h4>คงเหลือ</h4>
+        <h4><?php echo number_format(max(0, $totalProjectRequested - $totalUsedAll), 2); ?> บาท</h4>
+    </div>
+</div>
+<div class="col-md-3">
+    <div class="card p-3 bg-blue-300 text-white">
+        <h4>% ใช้จ่ายจริง</h4>
+        <h4>
+            <?php
+                $percentUsedProject = $totalProjectRequested > 0
+                    ? ($totalUsedAll / $totalProjectRequested) * 100
+                    : 0;
+                echo number_format($percentUsedProject, 2);
+            ?>%
+        </h4>
+    </div>
+</div>
+
         </div>
 
         <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้ว (จากงวดงาน) = รวม phases แบบไม่กรองวันที่ -->
@@ -373,24 +423,29 @@ $totalRemainAct = max(0, $totalActAmount - $totalRequested);
                 </thead>
                 <tbody>
                 <?php foreach($items as $row): 
-                    $id   = (int)$row['id'];
-                    $req  = (float)$row['requested_amount'];
+    $id   = (int)$row['id'];
 
-                    // SUM(phases.amount) ไม่กรองวันที่
-                    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+    // ✅ ใช้งบประมาณรวมจาก budget_detail (เชื่อมกับ load_detail)
+    $req  = isset($sumDetailByItem[$id]) 
+              ? (float)$sumDetailByItem[$id] 
+              : 0.0;
 
-                    $rem  = max(0, $req - $used);
-                    $pct  = $req > 0 ? ($used / $req * 100) : 0;
-                ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($row['item_name']); ?></td>
-                        <td><?php echo number_format($req, 2); ?></td>
-                        <td><?php echo number_format($used, 2); ?></td>
-                        <td><?php echo number_format($rem, 2); ?></td>
-                        <td><?php echo number_format($pct, 2); ?>%</td>
-                        <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">ดู</button></td>
-                    </tr>
-                <?php endforeach; ?>
+    // SUM(phases.amount) ไม่กรองวันที่ (เหมือนเดิม)
+    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+
+    $rem  = max(0, $req - $used);
+    $pct  = $req > 0 ? ($used / $req * 100) : 0;
+?>
+    <tr>
+        <td><?php echo htmlspecialchars($row['item_name']); ?></td>  <!-- = ประเภทโครงการ -->
+        <td><?php echo number_format($req, 2); ?></td>               <!-- = รวมงบจาก budget_detail -->
+        <td><?php echo number_format($used, 2); ?></td>              <!-- = ยอดจ่ายรวม -->
+        <td><?php echo number_format($rem, 2); ?></td>
+        <td><?php echo number_format($pct, 2); ?>%</td>
+        <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">ดู</button></td>
+    </tr>
+<?php endforeach; ?>
+
                 <?php if (!$items): ?>
                     <tr><td colspan="6" class="text-center text-muted">ไม่พบข้อมูลปีงบ <?php echo htmlspecialchars($selectedYear); ?></td></tr>
                 <?php endif; ?>

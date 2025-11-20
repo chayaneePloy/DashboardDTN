@@ -360,8 +360,8 @@ if (!empty($phases)) {
             <thead class="table-light sticky-head">
               <tr>
                 <th class="center">งวด/ชื่อ</th>
-                <th>Due Date</th>
-                <th>Completion Date</th>
+                <th>วันครบกำหนด</th>
+                <th>วันที่เสร็จสิ้น</th>
                 <th>วันที่จ่าย</th>
                 <th class="number">จำนวนเงิน (บาท)</th>
                 <th>สถานะ</th>
@@ -416,15 +416,39 @@ if (!empty($phases)) {
       }
 
       // แถวรายละเอียด
+         // แถวรายละเอียด
       $amount        = (float)$p['amount'];
       $projectSubtotal += $amount;
       $grandTotal      += $amount;
 
-      $phaseLabel = $p['phase_name'];
+      // ====== สร้างชื่อ "งวด/ชื่อ" แบบมี fallback ======
+      $phaseNumber = $p['phase_number'] ?? '';
+      $phaseName   = $p['phase_name']   ?? '';
+
+      $parts = [];
+
+      // ถ้ามีเลขงวด ให้ขึ้นต้นว่า "งวดที่ X"
+      if ($phaseNumber !== '' && $phaseNumber !== null) {
+          $parts[] = 'งวดที่ '.$phaseNumber;
+      }
+
+      // ถ้ามีชื่อเอามาต่อท้าย
+      if ($phaseName !== '' && $phaseName !== null) {
+          $parts[] = $phaseName;
+      }
+
+      // ถ้าว่างทั้งสองอย่าง ให้ข้อความ default
+      if (empty($parts)) {
+          $phaseLabel = 'ไม่ระบุงวด';
+      } else {
+          $phaseLabel = implode(' - ', $parts);   // ตัวอย่าง: "งวดที่ 1 - งวดรอง"
+      }
+
       $editUrl = 'edit_phase.php?phase_id='.urlencode($p['phase_id']).'&return='.urlencode($_SERVER['REQUEST_URI']);
 ?>
               <tr>
                 <td><?= htmlspecialchars($phaseLabel) ?></td>
+
                 <td><?= $p['due_date'] ? date("d/m/Y", strtotime($p['due_date'])) : '-' ?></td>
                 <td><?= $p['completion_date'] ? date("d/m/Y", strtotime($p['completion_date'])) : '-' ?></td>
                 <td><?= $p['payment_date'] ? date("d/m/Y", strtotime($p['payment_date'])) : '-' ?></td>
