@@ -84,6 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all'])) {
 <head>
 <meta charset="UTF-8">
 <title>จัดการงบย่อยของรายการหลัก</title>
+<link rel="icon" type="image/png" href="assets/logoio.ico">
+<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>

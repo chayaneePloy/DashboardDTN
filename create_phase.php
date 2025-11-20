@@ -148,6 +148,8 @@ if ($method === 'POST') {
 <head>
   <meta charset="UTF-8">
   <title>เพิ่มงวดงานใหม่</title>
+  <link rel="icon" type="image/png" href="assets/logoio.ico">
+<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>

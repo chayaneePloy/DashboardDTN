@@ -40,6 +40,9 @@ if($_SERVER['REQUEST_METHOD']=='POST'){
 <head>
 <meta charset="UTF-8">
 <title>เพิ่มสัญญา (Contract)</title>
+<!-- Favicon (โลโก้เล็กบนแท็บเว็บ) -->
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <script>
 function addPhaseRow(){

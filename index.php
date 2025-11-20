@@ -227,15 +227,22 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard งบประมาณ</title>
+    <title>Dashboard งบประมาณโครงการIT</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Favicon (โลโก้เล็กบนแท็บเว็บ) -->
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+
     <!-- Bootstrap & Chart.js -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+
     <!-- Custom -->
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -246,64 +253,48 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
         .table thead th { white-space: nowrap; }
         .filter-note { font-size: 0.85rem; color:#6c757d; }
         .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
-        /* เพิ่มเอฟเฟกต์เมื่อ hover */
-.navbar {
-  transition: all 0.3s ease-in-out;
-}
 
-/* ปรับลิงก์ใน Navbar */
-.navbar-nav .nav-link {
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-/* เส้นขีดใต้เวลา hover */
-.navbar-nav .nav-link::after {
-  content: '';
-  position: absolute;
-  width: 0%;
-  height: 2px;
-  left: 0;
-  bottom: 0;
-  background-color: #ffffff;
-  transition: width 0.3s;
-}
-
-.navbar-nav .nav-link:hover::after {
-  width: 100%;
-}
-
-/* เปลี่ยนสีพื้นหลังเมื่อ hover */
-.navbar-nav .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-}
-
-/* ปุ่มสวยขึ้นและมีเงา */
-.btn-success {
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-}
-
-.btn-success:hover {
-  background-color: #28a745;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-}
-
-/* ปรับโลโก้ */
-.navbar-brand {
-  letter-spacing: 0.5px;
-}
-        
+        /* Navbar effect */
+        .navbar { transition: all 0.3s ease-in-out; }
+        .navbar-nav .nav-link {
+          position: relative;
+          transition: all 0.3s ease;
+        }
+        .navbar-nav .nav-link::after {
+          content: '';
+          position: absolute;
+          width: 0%;
+          height: 2px;
+          left: 0;
+          bottom: 0;
+          background-color: #ffffff;
+          transition: width 0.3s;
+        }
+        .navbar-nav .nav-link:hover::after { width: 100%; }
+        .navbar-nav .nav-link:hover {
+          background-color: rgba(255, 255, 255, 0.15);
+          border-radius: 6px;
+        }
+        .btn-success {
+          transition: all 0.3s ease;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+        .btn-success:hover {
+          background-color: #28a745;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+        }
+        .navbar-brand { letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
     <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
   <div class="container-fluid">
-    <!-- โลโก้ / ชื่อระบบ -->
-    <a class="navbar-brand fs-3 fw-bold" href="index.php">Dashboard</a>
+    <!-- โลโก้ / ชื่อระบบ: ใช้ภาพแทนคำว่า Dashboard -->
+    <a class="navbar-brand d-flex align-items-center" href="index.php">
+      <img src="assets/logo2.png" alt="Dashboard งบประมาณ IT" style="height:40px;">
+    </a>
 
     <!-- ปุ่ม Hamburger สำหรับมือถือ -->
     <button class="navbar-toggler" type="button"
@@ -338,7 +329,6 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
   </div>
 </nav>
 
-
     <div class="container my-4">
         <h2 class="text-center mb-4">📊 Dashboard งบประมาณโครงการ IT (ปี <?php echo htmlspecialchars($selectedYear); ?>)</h2>
 
@@ -359,52 +349,51 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
         <!-- การ์ดสรุปรวมทั้งปี -->
         <div class="row text-center mb-4">
              <div class="col-md-6">
-      <div class="card p-3 bg-purple-700 text-white">
-         <h4>งบตาม พ.ร.บ.</h4>
-        <h4><?php echo number_format($totalActAmount,2); ?> บาท</h4>
-        
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card p-3 bg-blue-800  text-white">
-        <h4>งบคงเหลือตาม พ.ร.บ.</h4>
-        <h4><?php echo number_format($totalRemainAct,2); ?> บาท</h4>
-      </div>
-    </div>
+              <div class="card p-3 bg-purple-700 text-white">
+                 <h4>งบตาม พ.ร.บ.</h4>
+                <h4><?php echo number_format($totalActAmount,2); ?> บาท</h4>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-3 bg-blue-800  text-white">
+                <h4>งบคงเหลือตาม พ.ร.บ.</h4>
+                <h4><?php echo number_format($totalRemainAct,2); ?> บาท</h4>
+              </div>
+            </div>
         </div>
+
         <div class="row text-center mb-4">
             <div class="col-md-3">
-    <div class="card p-3 bg-blue-600 text-white">
-        <h4>งบตามโครงการ</h4>
-        <h4><?php echo number_format($totalProjectRequested, 2); ?> บาท</h4>
-    </div>
-</div>
-<div class="col-md-3">
-    <div class="card p-3 bg-blue-500 text-white">
-        <h4>ใช้จ่ายตามโครงการ</h4>
-        <h4><?php echo number_format($totalUsedAll, 2); ?> บาท</h4>
-    </div>
-</div>
-<div class="col-md-3">
-    <div class="card p-3 bg-blue-400 text-white">
-        <h4>คงเหลือ</h4>
-        <h4><?php echo number_format(max(0, $totalProjectRequested - $totalUsedAll), 2); ?> บาท</h4>
-    </div>
-</div>
-<div class="col-md-3">
-    <div class="card p-3 bg-blue-300 text-white">
-        <h4>% ใช้จ่ายจริง</h4>
-        <h4>
-            <?php
-                $percentUsedProject = $totalProjectRequested > 0
-                    ? ($totalUsedAll / $totalProjectRequested) * 100
-                    : 0;
-                echo number_format($percentUsedProject, 2);
-            ?>%
-        </h4>
-    </div>
-</div>
-
+                <div class="card p-3 bg-blue-600 text-white">
+                    <h4>งบตามโครงการ</h4>
+                    <h4><?php echo number_format($totalProjectRequested, 2); ?> บาท</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-500 text-white">
+                    <h4>ใช้จ่ายตามโครงการ</h4>
+                    <h4><?php echo number_format($totalUsedAll, 2); ?> บาท</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-400 text-white">
+                    <h4>คงเหลือ</h4>
+                    <h4><?php echo number_format(max(0, $totalProjectRequested - $totalUsedAll), 2); ?> บาท</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-blue-300 text-white">
+                    <h4>% ใช้จ่ายจริง</h4>
+                    <h4>
+                        <?php
+                            $percentUsedProject = $totalProjectRequested > 0
+                                ? ($totalUsedAll / $totalProjectRequested) * 100
+                                : 0;
+                            echo number_format($percentUsedProject, 2);
+                        ?>%
+                    </h4>
+                </div>
+            </div>
         </div>
 
         <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้ว (จากงวดงาน) = รวม phases แบบไม่กรองวันที่ -->
@@ -423,29 +412,28 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
                 </thead>
                 <tbody>
                 <?php foreach($items as $row): 
-    $id   = (int)$row['id'];
+                    $id   = (int)$row['id'];
 
-    // ✅ ใช้งบประมาณรวมจาก budget_detail (เชื่อมกับ load_detail)
-    $req  = isset($sumDetailByItem[$id]) 
-              ? (float)$sumDetailByItem[$id] 
-              : 0.0;
+                    // ✅ ใช้งบประมาณรวมจาก budget_detail (เชื่อมกับ load_detail)
+                    $req  = isset($sumDetailByItem[$id]) 
+                              ? (float)$sumDetailByItem[$id] 
+                              : 0.0;
 
-    // SUM(phases.amount) ไม่กรองวันที่ (เหมือนเดิม)
-    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+                    // SUM(phases.amount) ไม่กรองวันที่
+                    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
 
-    $rem  = max(0, $req - $used);
-    $pct  = $req > 0 ? ($used / $req * 100) : 0;
-?>
-    <tr>
-        <td><?php echo htmlspecialchars($row['item_name']); ?></td>  <!-- = ประเภทโครงการ -->
-        <td><?php echo number_format($req, 2); ?></td>               <!-- = รวมงบจาก budget_detail -->
-        <td><?php echo number_format($used, 2); ?></td>              <!-- = ยอดจ่ายรวม -->
-        <td><?php echo number_format($rem, 2); ?></td>
-        <td><?php echo number_format($pct, 2); ?>%</td>
-        <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">ดู</button></td>
-    </tr>
-<?php endforeach; ?>
-
+                    $rem  = max(0, $req - $used);
+                    $pct  = $req > 0 ? ($used / $req * 100) : 0;
+                ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+                        <td><?php echo number_format($req, 2); ?></td>
+                        <td><?php echo number_format($used, 2); ?></td>
+                        <td><?php echo number_format($rem, 2); ?></td>
+                        <td><?php echo number_format($pct, 2); ?>%</td>
+                        <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">ดู</button></td>
+                    </tr>
+                <?php endforeach; ?>
                 <?php if (!$items): ?>
                     <tr><td colspan="6" class="text-center text-muted">ไม่พบข้อมูลปีงบ <?php echo htmlspecialchars($selectedYear); ?></td></tr>
                 <?php endif; ?>
@@ -510,28 +498,34 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
                             $total_req = 0;
                             $total_paid = 0;
                             $total_remain = 0;
-                            ?>
+                        ?>
                         <?php if ($rowsAgg): ?>
                             <?php foreach ($rowsAgg as $r):
                                 $paid_sum  = (float)$r['paid_sum']; // จ่ายของรายการนี้ภายในไตรมาส
-                                $remain = $req - $paid_sum;
+
+                                // ใช้ requested จาก budget_detail รวมทั้งปีของงบนี้ (ถ้ามี)
+                                $itemId = (int)$r['budget_item_id'];
+                                $reqQuarter = isset($sumDetailByItem[$itemId]) ? (float)$sumDetailByItem[$itemId] : 0.0;
+
+                                $remain = max(0, $reqQuarter - $paid_sum);
                                 $pct_against_year_req = ($yearTotalRequestedDetail > 0)
                                     ? ($paid_sum / $yearTotalRequestedDetail * 100)
                                     : 0;
-                                $total_req += $req;
+
+                                $total_req += $reqQuarter;
                                 $total_paid += $paid_sum;
                                 $total_remain += $remain;
                             ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($r['item_name'] ?? ''); ?></td>
-                                    <td><?php echo number_format($req, 2); ?></td>
+                                    <td><?php echo number_format($reqQuarter, 2); ?></td>
                                     <td><?php echo number_format($paid_sum, 2); ?></td>
                                     <td><?php echo number_format($remain, 2); ?></td>
                                     <td><?php echo number_format($pct_against_year_req, 2); ?>%</td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="3" class="text-center text-muted">ไม่พบข้อมูลในไตรมาสที่เลือก</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted">ไม่พบข้อมูลในไตรมาสที่เลือก</td></tr>
                         <?php endif; ?>
                     </tbody>
                     <?php if ($rowsAgg): ?>
@@ -540,10 +534,8 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
                                 <td>รวมทั้งหมด</td>
                                 <td><?php echo number_format($total_req, 2); ?></td>
                                 <td><?php echo number_format($total_paid, 2); ?></td>
-
                                 <td><?php echo number_format($total_remain, 2); ?></td>
                                 <td><?php echo $yearTotalRequestedDetail>0 ? number_format(($total_paid/$yearTotalRequestedDetail)*100,2) : '0'; ?>%</td>
-    </tr>
                             </tr>
                         </tfoot>
                     <?php endif; ?>
@@ -554,7 +546,7 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
 
         <!-- กราฟ (อิงทั้งปี: อิงช่วงปีงบ) -->
         <div class="chart-container">
-            <div class="chart-box" style="flex: 2%;">
+            <div class="chart-box" style="flex: 2;">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">งบประมาณเปรียบเทียบกับการใช้จ่ายจริง (ทั้งปี)</h5>
                     <select id="chartType" class="form-select w-auto">
@@ -566,7 +558,7 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
                 </div>
                 <canvas id="budgetChart"></canvas>
             </div>
-            <div class="chart-box" style="flex: 1%;">
+            <div class="chart-box" style="flex: 1;">
                 <h5 class="text-center">สัดส่วนงบประมาณตามประเภท (%)</h5>
                 <canvas id="pieChart"></canvas>
             </div>

@@ -53,6 +53,10 @@ $allYears = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fi
 <head>
 <meta charset="UTF-8">
 <title>เพิ่ม/แก้ไข งบประมาณตาม พ.ร.บ.</title>
+<!-- Favicon (โลโก้เล็กบนแท็บเว็บ) -->
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+    
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
