@@ -148,9 +148,15 @@ if (!empty($phases)) {
         }
 
         // รวมยอด "จ่ายแล้ว" ต่อโครงการ (นิยาม: มี payment_date หรือสถานะสื่อความหมายว่าจ่ายแล้ว)
-        $isPaid = !empty($row['payment_date']) || in_array(mb_strtolower($status), ['paid','จ่ายแล้ว','ชำระแล้ว','จ่ายครบ']);
-        if (!isset($byProjectPaid[$pid])) $byProjectPaid[$pid] = 0;
-        if ($isPaid) $byProjectPaid[$pid] += $amt;
+       $statusClean = trim($status);
+
+if (!isset($byProjectPaid[$pid])) {
+    $byProjectPaid[$pid] = 0;
+}
+
+if ($statusClean === 'เสร็จสิ้น') {
+    $byProjectPaid[$pid] += $amt;
+}
 
         // รวมตามสถานะ (อิงจำนวนเงินของงวด)
         if (!isset($byStatus[$status])) $byStatus[$status] = 0;

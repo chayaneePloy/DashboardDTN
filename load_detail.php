@@ -35,15 +35,18 @@ $details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $phaseSumByDetail = [];
 if ($details) {
     // ใช้ LEFT JOIN เพื่อให้โครงการที่ยังไม่มี phase ก็ยังแสดง (ยอด = 0)
-    $stmtPhase = $pdo->prepare("
-        SELECT 
-            bd.id_detail,
-            COALESCE(SUM(p.amount), 0) AS phase_sum
-        FROM budget_detail bd
-        LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
-        LEFT JOIN phases   p ON p.contract_detail_id = c.contract_id
-        WHERE bd.budget_item_id = ?
-        GROUP BY bd.id_detail
+   $stmtPhase = $pdo->prepare("
+    SELECT 
+        bd.id_detail,
+        COALESCE(SUM(p.amount), 0) AS phase_sum
+    FROM budget_detail bd
+    LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
+    LEFT JOIN phases   p 
+        ON p.contract_detail_id = c.contract_id
+       AND p.status = 'เสร็จสิ้น'
+    WHERE bd.budget_item_id = ?
+    GROUP BY bd.id_detail
+
     ");
     $stmtPhase->execute([$id]);
     $rowsPhase = $stmtPhase->fetchAll(PDO::FETCH_ASSOC);

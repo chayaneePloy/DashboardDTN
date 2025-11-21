@@ -98,14 +98,17 @@ $stmtSpentAll = $pdo->prepare("
         COALESCE(SUM(p.amount), 0) AS spent_all_sum
     FROM budget_detail bd
     LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
-    LEFT JOIN phases   p ON p.contract_detail_id = c.contract_id
+    LEFT JOIN phases   p 
+        ON p.contract_detail_id = c.contract_id
+       AND p.status = 'เสร็จสิ้น'   -- ✅ นับเฉพาะงวดที่สถานะ 'เสร็จสิ้น'
     WHERE bd.budget_item_id IN (
         SELECT id FROM budget_items WHERE fiscal_year = :fy
     )
     GROUP BY bd.budget_item_id
 ");
 $stmtSpentAll->execute([':fy' => $selectedYear]);
-$spentAllByItem = $stmtSpentAll->fetchAll(PDO::FETCH_KEY_PAIR); // [budget_item_id => sum(phases.amount)]
+$spentAllByItem = $stmtSpentAll->fetchAll(PDO::FETCH_KEY_PAIR);
+
 
 // ===== เตรียมข้อมูลกราฟ (ทั้งปี) — อิง (A) =====
 $itemNamesArr = array_column($items, 'item_name');
