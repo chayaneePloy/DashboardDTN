@@ -22,10 +22,45 @@ $idCol = detectIdDetailColumn($pdo);
 $id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
 
 // ---------------- ดึงชื่อโครงการจาก budget_detail ----------------
-$stmtDetail = $pdo->prepare("SELECT detail_name FROM budget_detail WHERE id_detail = :id_detail");
+$stmtDetail = $pdo->prepare("
+    SELECT detail_name, budget_item_id 
+    FROM budget_detail 
+    WHERE id_detail = :id_detail
+");
 $stmtDetail->execute([':id_detail' => $id_detail]);
-$project_detail = $stmtDetail->fetch(PDO::FETCH_ASSOC);
-$detail_name = $project_detail ? $project_detail['detail_name'] : '-';
+$project_detail   = $stmtDetail->fetch(PDO::FETCH_ASSOC);
+
+$detail_name      = $project_detail['detail_name']      ?? '-';
+$budget_item_id   = $project_detail['budget_item_id']   ?? null;
+
+// --- ดึงเลขสัญญา และ ผู้รับจ้าง (ถ้ามี) จากตาราง contracts
+$contract_stmt = $pdo->prepare("
+    SELECT contract_number, contractor_name, total_amount
+    FROM contracts
+    WHERE detail_item_id = :id_detail
+    ORDER BY contract_id ASC
+    LIMIT 1
+");
+$contract_stmt->execute([':id_detail' => $id_detail]);
+$contract = $contract_stmt->fetch(PDO::FETCH_ASSOC);
+
+// --- ดึงงบที่ขอจาก budget_detail (requested_amount)
+$requested = $pdo->prepare("
+    SELECT requested_amount
+    FROM budget_detail
+    WHERE id_detail = :id_detail
+    LIMIT 1
+");
+$requested->execute([':id_detail' => $id_detail]);
+$requested_row = $requested->fetch(PDO::FETCH_ASSOC);
+
+// เตรียมตัวแปรสำหรับแสดงผล
+$contract_number  = $contract['contract_number']    ?? '-';
+$contractor_name  = $contract['contractor_name']    ?? '-';
+$contract_total   = isset($contract['total_amount']) ? number_format($contract['total_amount'], 2) : '-';
+$requested_amount = isset($requested_row['requested_amount']) ? number_format($requested_row['requested_amount'], 2) : '-';
+
+
 
 // ---------------- ฟังก์ชันอัปโหลดไฟล์เอกสาร (ถ้ามี) ----------------
 function handleUpload(?array $file, ?string $old = null): ?string {
@@ -51,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $step_order = (int)($_POST['step_order'] ?? 0);
         $step_name  = trim($_POST['step_name'] ?? '');
         $step_description = trim($_POST['step_description'] ?? '');
+        // step_date ที่ POST มา = พ.ศ. YYYY-MM-DD (จาก hidden)
         $step_date  = $_POST['step_date'] ?? null;
         $sub_steps  = trim($_POST['sub_steps'] ?? '');
         $is_completed = isset($_POST['is_completed']) ? 1 : 0;
@@ -64,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ':step_order'=> $step_order,
             ':step_name' => $step_name,
             ':step_description' => $step_description,
-            ':step_date' => $step_date,
+            ':step_date' => $step_date, // เก็บเป็น พ.ศ. เช่น 2568-01-31
             ':sub_steps' => $sub_steps,
             ':is_completed' => $is_completed,
             ':document_path' => $doc
@@ -78,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $step_order = (int)($_POST['step_order'] ?? 0);
         $step_name  = trim($_POST['step_name'] ?? '');
         $step_description = trim($_POST['step_description'] ?? '');
-        $step_date  = $_POST['step_date'] ?? null;
+        $step_date  = $_POST['step_date'] ?? null;   // พ.ศ.
         $sub_steps  = trim($_POST['sub_steps'] ?? '');
         $is_completed = isset($_POST['is_completed']) ? 1 : 0;
         $existing_doc = $_POST['existing_document_path'] ?? null;
@@ -139,8 +175,16 @@ function thai_date($date) {
     if (!$date) return '';
     $months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
                "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-    $ts = strtotime($date);
-    return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts));
+
+    $ts = strtotime($date); // date ใน DB เป็น พ.ศ. เช่น 2568-01-31 -> year = 2568
+    return date('j', $ts) . " " . $months[date('n', $ts)] . " " . (date('Y', $ts)); // แสดง 2568 ตาม DB
+}
+
+// ใช้สำหรับแปลง YYYY-MM-DD (พ.ศ.) -> dd/mm/YYYY (พ.ศ.) แสดงในช่อง input fake
+function thai_date_input($date) {
+    if (!$date || $date == '0000-00-00') return '';
+    [$y, $m, $d] = explode('-', $date);
+    return sprintf('%02d/%02d/%04d', (int)$d, (int)$m, (int)$y);
 }
 
 // ---------------- คำนวณ progress + current/next step ----------------
@@ -167,8 +211,9 @@ $next_stmt = $pdo->prepare("
 ");
 $next_stmt->execute([':id_detail' => $id_detail]);
 $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
-?>
-<?php
+
+
+// ---------------- ดึง phases ----------------
 $phase_sql = "
     SELECT p.phase_id, p.phase_number, p.phase_name, p.amount, p.due_date, p.completion_date, p.payment_date, p.status
     FROM phases p
@@ -181,12 +226,13 @@ $phase_st = $pdo->prepare($phase_sql);
 $phase_st->execute([':id_detail' => $id_detail]);
 $phases = $phase_st->fetchAll(PDO::FETCH_ASSOC);
 
+// ถ้าใน DB ของ phases ก็เก็บเป็น พ.ศ. เช่นกัน -> ไม่ต้อง +543 แล้ว
 function thai_date_full($date) {
     if (!$date || $date == '0000-00-00') return '';
     $months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
                "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
     $ts = strtotime($date);
-    return date('j', $ts)." ".$months[date('n', $ts)]." ".(date('Y', $ts)+543);
+    return date('j', $ts)." ".$months[date('n', $ts)]." ".(date('Y', $ts)); // ใช้ปีตาม DB ตรง ๆ (พ.ศ.)
 }
 ?>
 <!DOCTYPE html>
@@ -196,9 +242,14 @@ function thai_date_full($date) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบติดตามขั้นตอนโครงการ</title>
   <link rel="icon" type="image/png" href="assets/logoio.ico">
-<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <style>
       body { font-family: 'Kanit', sans-serif; background-color: #f4f6f9; }
       .navbar { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -208,6 +259,14 @@ function thai_date_full($date) {
       .step-card { min-width: 280px; flex-shrink: 0; border: none; transition: transform 0.2s; }
       .step-card:hover { transform: translateY(-4px); }
       footer { box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+      .navbar-dark .navbar-nav .nav-link {
+        color: #ffffff !important;
+        font-weight: 500;
+      }
+      .navbar-dark .navbar-nav .nav-link:hover {
+        color: #ffeb3b !important;
+      }
+      .navbar-brand { color: #ffffff !important; }
   </style>
 </head>
 <body>
@@ -215,14 +274,39 @@ function thai_date_full($date) {
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="index.php">📊 ระบบติดตามโครงการ</a>
-    <div class="ms-auto d-flex gap-2">
-      <a href="steps_edit.php?id_detail=<?= $id_detail ?>" class="btn btn-light">⚙️ จัดการขั้นตอน</a>
-      <a href="index.php" class="btn btn-light"><i class="bi bi-house"></i> หน้าหลัก</a>
-      <a href="javascript:history.back()" class="btn btn-light"><i class="bi bi-arrow-left"></i> กลับ</a>
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="index.php">
+      📊 Dashboard การจ่ายงวด
+    </a>
+
+    <!-- Hamburger -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Menu -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="index.php">
+            <i class="bi bi-house"></i> หน้าหลัก
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="javascript:history.back()">
+            <i class="bi bi-arrow-left"></i> กลับ
+          </a>
+        </li>
+
+      </ul>
     </div>
+
   </div>
 </nav>
+
 
 <div class="container my-4">
 
@@ -232,7 +316,6 @@ function thai_date_full($date) {
       <h2 class="fw-bold text-primary"><?= htmlspecialchars($detail_name) ?></h2>
       <p class="text-muted">ติดตามความก้าวหน้าของโครงการ</p>
 
-      <!-- Progress -->
       <div class="progress my-3" style="height: 22px;">
         <div class="progress-bar bg-success fw-bold" role="progressbar" style="width: <?= $percent ?>%;">
           <?= $percent ?>%
@@ -244,7 +327,7 @@ function thai_date_full($date) {
 
   <!-- Current/Next Step -->
   <div class="row mb-4">
-    <div class="col-md-6">
+    <div class="col-md-12">
       <div class="card shadow-sm border-0">
         <div class="card-body">
           <h5 class="fw-bold text-success">✅ ขั้นตอนล่าสุดที่เสร็จแล้ว</h5>
@@ -252,14 +335,14 @@ function thai_date_full($date) {
         </div>
       </div>
     </div>
-    <div class="col-md-6 mt-3 mt-md-0">
+    <!--<div class="col-md-6 mt-3 mt-md-0">
       <div class="card shadow-sm border-0">
         <div class="card-body">
           <h5 class="fw-bold text-warning">⏳ ขั้นตอนถัดไป</h5>
-          <p><?= $next_step ? $next_step['step_order'].'. '.$next_step['step_name'] : 'โครงการเสร็จสิ้นแล้ว' ?></p>
+          <p><?= $next_step ? $next_step['step_order'].'. '.$next_step['step_name'] : 'เสร็จสิ้น' ?></p>
         </div>
       </div>
-    </div>
+    </div>-->
   </div>
 
   <!-- Timeline Header + Add Button -->
@@ -283,12 +366,10 @@ function thai_date_full($date) {
           <?= htmlspecialchars(mb_strimwidth($step['step_description'], 0, 80, '...')) ?>
         </p>
         <div class="d-flex gap-2">
-          <!-- ดูรายละเอียด -->
           <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#stepModal<?= $step['id'] ?>">
             ดูรายละเอียด
           </button>
 
-          <!-- ปุ่มสลับสถานะ (ของเดิม) -->
           <form method="post" action="steps_edit.php?id_detail=<?= $id_detail ?>" style="display:inline;">
             <input type="hidden" name="toggle_id" value="<?= $step['id'] ?>">
             <input type="hidden" name="current_state" value="<?= (int)$step['is_completed'] ?>">
@@ -325,8 +406,8 @@ function thai_date_full($date) {
             <?php endif; ?>
           </div>
           <div class="modal-footer">
-               <button class="btn btn-warning" data-bs-target="#editStepModal<?= $step['id'] ?>" data-bs-toggle="modal">แก้ไข</button>
-               <button class="btn btn-danger" data-bs-target="#deleteStepModal<?= $step['id'] ?>" data-bs-toggle="modal">ลบ</button>
+            <button class="btn btn-warning" data-bs-target="#editStepModal<?= $step['id'] ?>" data-bs-toggle="modal">แก้ไข</button>
+            <button class="btn btn-danger" data-bs-target="#deleteStepModal<?= $step['id'] ?>" data-bs-toggle="modal">ลบ</button>
           </div>
         </div>
       </div>
@@ -356,7 +437,26 @@ function thai_date_full($date) {
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">วันที่</label>
-                  <input type="date" name="step_date" class="form-control" value="<?= htmlspecialchars($step['step_date']) ?>" required>
+                  <div class="input-group">
+                    <!-- hidden: เก็บ พ.ศ. -->
+                    <input type="hidden"
+                           name="step_date"
+                           id="step_date_real_<?= $step['id'] ?>"
+                           value="<?= htmlspecialchars($step['step_date']) ?>">
+
+                    <!-- picker ค.ศ. ซ่อน -->
+                    <input type="date"
+                           class="form-control d-none"
+                           id="step_date_picker_<?= $step['id'] ?>">
+
+                    <!-- ช่องแสดง พ.ศ. -->
+                    <input type="text"
+                           class="form-control"
+                           id="step_date_fake_<?= $step['id'] ?>"
+                           placeholder="เลือกวันที่ (พ.ศ.)"
+                           value="<?= htmlspecialchars(thai_date_input($step['step_date'])) ?>"
+                           readonly>
+                  </div>
                 </div>
                 <div class="col-md-8 d-flex align-items-center">
                   <div class="form-check mt-4">
@@ -389,6 +489,7 @@ function thai_date_full($date) {
         </div>
       </div>
     </div>
+
     <!-- Modal: ลบ -->
     <div class="modal fade" id="deleteStepModal<?= $step['id'] ?>" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
@@ -412,14 +513,12 @@ function thai_date_full($date) {
       </div>
     </div>
 
-  
     <?php endforeach; ?>
   </div>
 
 </div>
 
 <!-- Modal: เพิ่มขั้นตอน -->
-
 <div class="modal fade" id="addStepModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -441,7 +540,26 @@ function thai_date_full($date) {
             </div>
             <div class="col-md-4">
               <label class="form-label">วันที่</label>
-              <input type="date" name="step_date" class="form-control" required>
+              <div class="input-group">
+                <!-- hidden: เก็บ พ.ศ. -->
+                <input type="hidden"
+                       name="step_date"
+                       id="new_step_date_real"
+                       value="">
+
+                <!-- picker ค.ศ. ซ่อน -->
+                <input type="date"
+                       class="form-control d-none"
+                       id="new_step_date_picker">
+
+                <!-- ช่องแสดง พ.ศ. -->
+                <input type="text"
+                       class="form-control"
+                       id="new_step_date_fake"
+                       placeholder="เลือกวันที่ (พ.ศ.)"
+                       value=""
+                       readonly>
+              </div>
             </div>
             <div class="col-md-8 d-flex align-items-center">
               <div class="form-check mt-4">
@@ -469,57 +587,68 @@ function thai_date_full($date) {
         </div>
       </form>
     </div>
-    </div>
-</div>
-<!-- ✅ ตาราง phases ที่เพิ่มใหม่ -->
-<div class="container">
-<div class="card shadow-sm mt-5">
-  <div class="card-header bg-success text-white fw-bold">💰 งวดงานของโครงการ (Phases)</div>
-  <div class="card-body p-0">
-    <table class="table table-bordered table-striped m-0 text-center align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>งวด/ชื่อ</th>
-          <th>Due Date (พ.ศ.)</th>
-          <th>Completion Date (พ.ศ.)</th>
-          <th>วันที่จ่าย (พ.ศ.)</th>
-          <th>จำนวนเงิน (บาท)</th>
-          <th>สถานะ</th>
-          <th>แก้ไข</th>
-        </tr>
-      </thead>
-      <tbody>
-      <?php if($phases): foreach($phases as $p): ?>
-        <tr>
-          <td>
-  งวดที่ <?= htmlspecialchars($p['phase_number']) ?>
-  <?php if (!empty($p['phase_name'])): ?>
-    – <?= htmlspecialchars($p['phase_name']) ?>
-  <?php endif; ?>
-</td>
-<td><?= thai_date_full($p['due_date']) ?></td>
-<td><?= thai_date_full($p['completion_date']) ?></td>
-<td><?= thai_date_full($p['payment_date']) ?></td>
-<td class="text-end"><?= number_format($p['amount'], 2) ?></td>
-<td><?= htmlspecialchars($p['status']) ?></td>
-<td>
-  <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
-    <i class="bi bi-pencil-square"></i>
-  </a>
-</td>
-
-        </tr>
-      <?php endforeach; else: ?>
-        <tr><td colspan="7" class="text-muted">ไม่มีข้อมูลงวดงานของโครงการนี้</td></tr>
-      <?php endif; ?>
-      </tbody>
-    </table>
   </div>
 </div>
+
+<!-- ✅ ตาราง phases -->
+<div class="container">
+  <div class="card shadow-sm mt-5">
+   
+  <div class="card-header bg-success text-white fw-bold">
+  <div>💰 งวดงานของโครงการ (Phases)</div>
+    <div class="mt-1 small ">
+    <strong>เลขสัญญา:</strong> <?= htmlspecialchars($contract_number) ?> &nbsp;|&nbsp;
+    <strong>ผู้รับจ้าง:</strong> <?= htmlspecialchars($contractor_name) ?> &nbsp;|&nbsp;
+    <strong>งบที่ขอ:</strong> <?= $requested_amount ?> บาท
+  </div>
+
+  <!-- บรรทัดข้อมูลย่อย: เล็กกว่าและสีจางลง -->
+  
 </div>
-</div> <!-- ปิด container -->
 
+</div>
 
+    <div class="card-body p-0">
+      <table class="table table-bordered table-striped m-0 text-center align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>งวด/ชื่อ</th>
+            <th>Due Date (พ.ศ.)</th>
+            <th>Completion Date (พ.ศ.)</th>
+            <th>วันที่จ่าย (พ.ศ.)</th>
+            <th>จำนวนเงิน (บาท)</th>
+            <th>สถานะ</th>
+            <th>แก้ไข</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php if($phases): foreach($phases as $p): ?>
+          <tr>
+            <td>
+              งวดที่ <?= htmlspecialchars($p['phase_number']) ?>
+              <?php if (!empty($p['phase_name'])): ?>
+                – <?= htmlspecialchars($p['phase_name']) ?>
+              <?php endif; ?>
+            </td>
+            <td><?= thai_date_full($p['due_date']) ?></td>
+            <td><?= thai_date_full($p['completion_date']) ?></td>
+            <td><?= thai_date_full($p['payment_date']) ?></td>
+            <td class="text-end"><?= number_format($p['amount'], 2) ?></td>
+            <td><?= htmlspecialchars($p['status']) ?></td>
+            <td>
+              <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+            </td>
+          </tr>
+        <?php endforeach; else: ?>
+          <tr><td colspan="7" class="text-muted">ไม่มีข้อมูลงวดงานของโครงการนี้</td></tr>
+        <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- Footer -->
 <footer class="bg-dark text-white text-center py-3 mt-5">
@@ -527,6 +656,79 @@ function thai_date_full($date) {
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ผูก date-picker (ค.ศ.) + hidden (พ.ศ.) + textbox (พ.ศ.)
+document.addEventListener('DOMContentLoaded', function () {
+
+  function bindThaiDate(pickerId, realId, fakeId) {
+    const picker = document.getElementById(pickerId); // <input type="date"> (ค.ศ.)
+    const real   = document.getElementById(realId);   // hidden พ.ศ. YYYY-MM-DD
+    const fake   = document.getElementById(fakeId);   // textbox แสดง dd/mm/YYYY (พ.ศ.)
+
+    if (!picker || !real || !fake) return;
+
+    // คลิกช่อง fake => เปิดปฏิทินของ picker
+    fake.addEventListener('click', function () {
+      if (typeof picker.showPicker === 'function') {
+        picker.showPicker();
+      } else {
+        picker.focus();
+      }
+    });
+
+    // เมื่อเลือกวันที่ในปฏิทิน (ได้ ค.ศ.)
+    picker.addEventListener('change', function () {
+      if (!picker.value) {
+        real.value = "";
+        fake.value = "";
+        return;
+      }
+      const d = new Date(picker.value);
+      if (isNaN(d)) return;
+
+      const dayCE   = String(d.getDate()).padStart(2, '0');
+      const monthCE = String(d.getMonth() + 1).padStart(2, '0');
+      const yearCE  = d.getFullYear();
+      const yearTH  = yearCE + 543;
+
+      // hidden: เก็บ พ.ศ. YYYY-MM-DD
+      real.value = `${yearTH}-${monthCE}-${dayCE}`;
+
+      // ช่องแสดง: dd/mm/YYYY (พ.ศ.)
+      fake.value = `${dayCE}/${monthCE}/${yearTH}`;
+    });
+
+    // ถ้ามีค่า พ.ศ. ใน hidden อยู่แล้ว -> sync กลับให้ picker/fake
+    if (real.value) {
+      const parts = real.value.split('-'); // [YYYY(TH), MM, DD]
+      if (parts.length === 3) {
+        let yTH = parseInt(parts[0], 10);
+        let m   = parseInt(parts[1], 10);
+        let d   = parseInt(parts[2], 10);
+        if (!isNaN(yTH) && !isNaN(m) && !isNaN(d)) {
+          const yCE = yTH - 543;
+          const mm  = String(m).padStart(2, '0');
+          const dd  = String(d).padStart(2, '0');
+          picker.value = `${yCE}-${mm}-${dd}`;
+          fake.value   = `${dd}/${mm}/${yTH}`;
+        }
+      }
+    }
+  }
+
+  // bind สำหรับเพิ่มขั้นตอนใหม่
+  bindThaiDate('new_step_date_picker', 'new_step_date_real', 'new_step_date_fake');
+
+  // bind สำหรับแต่ละขั้นตอน (แก้ไข)
+  <?php foreach ($steps as $step): ?>
+  bindThaiDate('step_date_picker_<?= $step['id'] ?>',
+               'step_date_real_<?= $step['id'] ?>',
+               'step_date_fake_<?= $step['id'] ?>');
+  <?php endforeach; ?>
+});
+</script>
+
 </body>
 </html>
 <?php $pdo = null; ?>

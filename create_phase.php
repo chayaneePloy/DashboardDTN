@@ -1,5 +1,6 @@
 <?php
 // ===================== CONNECT =====================
+// ปรับค่าตามการเชื่อมต่อจริงของคุณ
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -7,13 +8,28 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 $allowedStatus = ['รอดำเนินการ','อยู่ระหว่างดำเนินการ','เสร็จสิ้น','ยกเลิก'];
 
+/**
+ * แปลงวันที่รูปแบบ YYYY-MM-DD (ที่เก็บเป็น พ.ศ. ในฐานข้อมูล/POST)
+ * ให้เป็น dd/mm/YYYY (พ.ศ.) เพื่อแสดงในช่อง fake
+ * เช่น 2568-02-01 -> 01/02/2568
+ */
+function toThaiDisplay($dateStr){
+    if (!$dateStr) return '';
+    $parts = explode('-', $dateStr);
+    if (count($parts) !== 3) return '';
+    $y = (int)$parts[0];
+    $m = (int)$parts[1];
+    $d = (int)$parts[2];
+    return sprintf('%02d/%02d/%04d', $d, $m, $y);
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $return_url = $_GET['return'] ?? $_POST['return_url'] ?? '';
 
-$selected_year = $_GET['year'] ?? ($_POST['year'] ?? '');
-$selected_item = $_GET['item'] ?? ($_POST['item'] ?? '');
-$selected_detail = $_POST['detail_id'] ?? '';   // โครงการ (budget_detail.id_detail)
-$selected_contract = $_POST['contract_id'] ?? ''; // สัญญา (contracts.contract_id)
+$selected_year    = $_GET['year'] ?? ($_POST['year'] ?? '');
+$selected_item    = $_GET['item'] ?? ($_POST['item'] ?? '');
+$selected_detail  = $_POST['detail_id'] ?? '';     // โครงการ (budget_detail.id_detail)
+$selected_contract= $_POST['contract_id'] ?? '';   // สัญญา (contracts.contract_id)
 
 $successMsg = $errorMsg = "";
 
@@ -70,17 +86,21 @@ if ($selected_detail !== '') {
 // ===================== บันทึก (POST) =====================
 if ($method === 'POST') {
     // รับค่า
-    $year  = $_POST['year'] ?? '';
-    $item  = $_POST['item'] ?? '';
+    $year        = $_POST['year'] ?? '';
+    $item        = $_POST['item'] ?? '';
     $detail_id   = $_POST['detail_id'] ?? '';
     $contract_id = $_POST['contract_id'] ?? '';
 
     $phase_number    = (int)($_POST['phase_number'] ?? 0);
     $phase_name      = trim($_POST['phase_name'] ?? '');
+    // amount
     $amountInput     = str_replace([',',' '], '', $_POST['amount'] ?? '0');
-    $due_date        = $_POST['due_date'] ?: null;
+
+    // *** วันที่ที่ส่งมาคือ พ.ศ. ในรูปแบบ YYYY-MM-DD ***
+    $due_date        = $_POST['due_date'] ?: null;         // e.g. 2568-01-31
     $completion_date = $_POST['completion_date'] ?: null;
     $payment_date    = $_POST['payment_date'] ?: null;
+
     $status          = $_POST['status'] ?? $allowedStatus[0];
 
     // ตรวจค่าพื้นฐาน
@@ -92,9 +112,12 @@ if ($method === 'POST') {
         $amount = (float)$amountInput;
         if ($amount < 0) $errorMsg = "จำนวนเงินต้องเป็นค่าบวก";
     }
+
     if (!$errorMsg && !in_array($status, $allowedStatus, true)) {
         $status = $allowedStatus[0];
     }
+
+    // เปรียบเทียบวันที่ (เทียบจากสตริง YYYY-MM-DD พ.ศ. ก็ยังเรียงได้เหมือนเดิม)
     if (!$errorMsg && $due_date && $completion_date && ($due_date > $completion_date)) {
         $errorMsg = "Due Date ต้องไม่เกิน Completion Date";
     }
@@ -128,7 +151,7 @@ if ($method === 'POST') {
             $phase_number,
             $phase_name,
             $amount,
-            $due_date,
+            $due_date,         // เก็บเป็น พ.ศ. เช่น 2568-01-31
             $completion_date,
             $status,
             $payment_date
@@ -149,7 +172,7 @@ if ($method === 'POST') {
   <meta charset="UTF-8">
   <title>เพิ่มงวดงานใหม่</title>
   <link rel="icon" type="image/png" href="assets/logoio.ico">
-<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
+  <link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
@@ -253,19 +276,73 @@ if ($method === 'POST') {
           </select>
         </div>
 
+        <!-- Due Date (พ.ศ.) -->
         <div class="col-md-4">
           <label class="form-label">Due Date</label>
-          <input type="date" class="form-control" name="due_date" value="<?= h($_POST['due_date'] ?? '') ?>">
+          <div class="input-group">
+            <!-- ตัวจริงที่ส่งเข้า PHP/DB (เก็บเป็น พ.ศ. YYYY-MM-DD) -->
+            <input type="hidden"
+                   id="due_date_real"
+                   name="due_date"
+                   value="<?= h($_POST['due_date'] ?? '') ?>">
+
+            <!-- ตัวที่ใช้เปิดปฏิทิน (ค.ศ.) -->
+            <input type="date"
+                   class="form-control d-none"
+                   id="due_date_picker">
+
+            <!-- ตัวที่ user เห็น (พ.ศ.) -->
+            <input type="text"
+                   class="form-control"
+                   id="due_date_fake"
+                   placeholder="เลือกวันที่ (พ.ศ.)"
+                   value="<?= h(toThaiDisplay($_POST['due_date'] ?? '')) ?>"
+                   readonly>
+          </div>
         </div>
 
+        <!-- Completion Date (พ.ศ.) -->
         <div class="col-md-4">
           <label class="form-label">Completion Date</label>
-          <input type="date" class="form-control" name="completion_date" value="<?= h($_POST['completion_date'] ?? '') ?>">
+          <div class="input-group">
+            <input type="hidden"
+                   id="completion_date_real"
+                   name="completion_date"
+                   value="<?= h($_POST['completion_date'] ?? '') ?>">
+
+            <input type="date"
+                   class="form-control d-none"
+                   id="completion_date_picker">
+
+            <input type="text"
+                   class="form-control"
+                   id="completion_date_fake"
+                   placeholder="เลือกวันที่ (พ.ศ.)"
+                   value="<?= h(toThaiDisplay($_POST['completion_date'] ?? '')) ?>"
+                   readonly>
+          </div>
         </div>
 
+        <!-- Payment Date (พ.ศ.) -->
         <div class="col-md-4">
           <label class="form-label">Payment Date</label>
-          <input type="date" class="form-control" name="payment_date" value="<?= h($_POST['payment_date'] ?? '') ?>">
+          <div class="input-group">
+            <input type="hidden"
+                   id="payment_date_real"
+                   name="payment_date"
+                   value="<?= h($_POST['payment_date'] ?? '') ?>">
+
+            <input type="date"
+                   class="form-control d-none"
+                   id="payment_date_picker">
+
+            <input type="text"
+                   class="form-control"
+                   id="payment_date_fake"
+                   placeholder="เลือกวันที่ (พ.ศ.)"
+                   value="<?= h(toThaiDisplay($_POST['payment_date'] ?? '')) ?>"
+                   readonly>
+          </div>
         </div>
 
         <div class="col-12 d-flex gap-2 mt-2">
@@ -280,5 +357,76 @@ if ($method === 'POST') {
     </div>
   </div>
 </div>
+
+<script>
+// ฟังก์ชันผูก date picker (ค.ศ.) + hidden (พ.ศ.) + ช่องแสดง (พ.ศ.)
+document.addEventListener('DOMContentLoaded', function () {
+
+  function bindThaiDate(pickerId, realId, fakeId) {
+    const picker = document.getElementById(pickerId); // type="date"
+    const real   = document.getElementById(realId);   // hidden พ.ศ.
+    const fake   = document.getElementById(fakeId);   // text แสดง พ.ศ.
+    if (!picker || !real || !fake) return;
+
+    // เมื่อคลิกช่อง fake -> เปิดปฏิทินของ picker
+    fake.addEventListener('click', function () {
+      if (typeof picker.showPicker === 'function') {
+        picker.showPicker();
+      } else {
+        picker.focus();
+      }
+    });
+
+    // เมื่อเลือกวันที่จาก picker (ค.ศ.)
+    picker.addEventListener('change', function () {
+      if (!picker.value) {
+        real.value = "";
+        fake.value = "";
+        return;
+      }
+      const d = new Date(picker.value);
+      if (isNaN(d)) return;
+
+      const day   = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const yearCE  = d.getFullYear();
+      const yearTH  = yearCE + 543;
+
+      // เก็บลง hidden เป็น พ.ศ. YYYY-MM-DD
+      real.value = `${yearTH}-${month}-${day}`;
+
+      // แสดงใน fake เป็น dd/mm/ปีพ.ศ.
+      fake.value = `${day}/${month}/${yearTH}`;
+    });
+
+    // ถ้ามีค่า พ.ศ. อยู่ใน hidden (เช่น submit แล้ว error) -> sync กลับมา picker/fake
+    if (real.value) {
+      const parts = real.value.split('-');
+      if (parts.length === 3) {
+        let yTH = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let d = parseInt(parts[2], 10);
+
+        if (!isNaN(yTH) && !isNaN(m) && !isNaN(d)) {
+          const yCE = yTH - 543;
+          const mm  = String(m).padStart(2, '0');
+          const dd  = String(d).padStart(2, '0');
+
+          // เซ็ตค่าให้ picker (ค.ศ.)
+          picker.value = `${yCE}-${mm}-${dd}`;
+
+          // เซ็ตค่าให้ fake (พ.ศ.)
+          fake.value   = `${dd}/${mm}/${yTH}`;
+        }
+      }
+    }
+  }
+
+  bindThaiDate('due_date_picker',        'due_date_real',        'due_date_fake');
+  bindThaiDate('completion_date_picker', 'completion_date_real', 'completion_date_fake');
+  bindThaiDate('payment_date_picker',    'payment_date_real',    'payment_date_fake');
+});
+</script>
+
 </body>
 </html>

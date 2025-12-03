@@ -57,25 +57,64 @@ $allYears = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fi
     <link rel="icon" type="image/png" href="assets/logoio.ico">
     <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
     
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 <style>
 body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
 .container { max-width: 950px; }
 .navbar { margin-bottom: 20px; }
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #ffeb3b !important;        /* เวลา hover เป็นเหลือง */
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+}
 </style>
 </head>
 <body>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="index.php?year=<?= $selectedYear ?>">← กลับ Dashboard</a>
-    <div class="d-flex text-white">
-      ปีงบประมาณที่เลือก: <span class="fw-bold ms-2"><?= htmlspecialchars($selectedYear) ?></span>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="index.php">
+      📊 Dashboard การจ่ายงวด
+    </a>
+
+    <!-- Hamburger -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Menu -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="index.php">
+            <i class="bi bi-house"></i> หน้าหลัก
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="javascript:history.back()">
+            <i class="bi bi-arrow-left"></i> กลับ
+          </a>
+        </li>
+
+      </ul>
     </div>
+
   </div>
 </nav>
+
 
 <div class="container">
   <div class="card shadow-sm mb-4">

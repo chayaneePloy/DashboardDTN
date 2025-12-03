@@ -69,3 +69,10 @@
 .bg-orange-400 { background-color: #ff922b !important; }
 .bg-orange-600 { background-color: #fd7e14 !important; }
 .bg-red-600 { background-color: #dc3545 !important; }
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #ffeb3b !important;        /* เวลา hover เป็นเหลือง */
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+}

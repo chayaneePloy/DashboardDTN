@@ -223,22 +223,61 @@ if ($statusClean === 'เสร็จสิ้น') {
     .sticky-head th { position: sticky; top: 0; background: #fff; z-index: 1; }
     .number { text-align: right; }
     .card .card-body canvas { width: 100% !important; height: 380px !important; }
+          .navbar-dark .navbar-nav .nav-link {
+    color: #ffffff !important;        /* ขาวจัด */
+    font-weight: 500;                 /* ตัวชัดขึ้น */
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #ffeb3b !important;        /* เวลา hover เป็นเหลือง */
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+}
+
   </style>
 </head>
 <body class="bg-light">
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="index.php">← กลับ Dashboard</a>
-    
+ <!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="index.php">
+      📊 Dashboard การจ่ายงวด
+    </a>
+
+    <!-- Hamburger -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Menu -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+        <li class="nav-item">
+          <a class="nav-link" href="index.php">
+            <i class="bi bi-house"></i> หน้าหลัก
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="javascript:history.back()">
+            <i class="bi bi-arrow-left"></i> กลับ
+          </a>
+        </li>
+
+      </ul>
+    </div>
+
   </div>
 </nav>
-
 <div class="container my-4">
   <div class="d-flex align-items-center justify-content-between">
-    <h2 class="mb-4 text-primary">📊 Dashboard การจ่ายงวด (Phases)</h2>
-
-    <!-- ปุ่มเพิ่มสัญญา/งวดงาน: แสดงเมื่อเลือกปี+งบประมาณแล้ว -->
+      <!-- ปุ่มเพิ่มสัญญา/งวดงาน: แสดงเมื่อเลือกปี+งบประมาณแล้ว -->
     <?php if ($selected_year && $selected_item): ?>
       <div class="mb-3 d-flex gap-2">
         <a class="btn btn-outline-success"
@@ -342,13 +381,7 @@ if ($statusClean === 'เสร็จสิ้น') {
           <div class="card-body"><canvas id="chartByStatus"></canvas></div>
         </div>
       </div>
-      <div class="col-12">
-        <div class="card shadow-sm">
-          <div class="card-header">ยอดตามเดือน (timeline)</div>
-          <div class="card-body"><canvas id="chartByMonth"></canvas></div>
-        </div>
       </div>
-    </div>
   <?php endif; ?>
 
   <!-- ตารางแสดงผลรายละเอียด -->
@@ -599,6 +632,6 @@ const currencyFmt = (v) => new Intl.NumberFormat('th-TH', { style: 'currency', c
 })();
 </script>
 <?php endif; ?>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -399,50 +399,63 @@ $sumDetailByItem = $stmtSumDetailPerItem->fetchAll(PDO::FETCH_KEY_PAIR); // [bud
             </div>
         </div>
 
-        <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้ว (จากงวดงาน) = รวม phases แบบไม่กรองวันที่ -->
-        <div class="card p-3 mb-4">
-            <h4>📋 รายการงบประมาณ (ทั้งปี)</h4>  
-            <table class="table table-bordered table-striped mt-3">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ประเภท</th>
-                        <th>งบประมาณ</th>
-                        <th>ใช้จ่ายแล้ว (จากงวดงาน)</th>
-                        <th>คงเหลือ</th>
-                        <th>% ใช้จ่าย</th>
-                        <th>รายละเอียด</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php foreach($items as $row): 
-                    $id   = (int)$row['id'];
+       <!-- ตาราง budget_items (ทั้งปี) — ใช้จ่ายแล้ว (จากงวดงาน) = รวม phases แบบไม่กรองวันที่ -->
+<div class="card p-3 mb-4">
+    <h4>📋 รายการงบประมาณ (ทั้งปี)</h4>  
 
-                    // ✅ ใช้งบประมาณรวมจาก budget_detail (เชื่อมกับ load_detail)
-                    $req  = isset($sumDetailByItem[$id]) 
-                              ? (float)$sumDetailByItem[$id] 
-                              : 0.0;
+    <!-- ✅ ครอบ table ด้วย .table-responsive เพื่อรองรับมือถือ -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th class="text-center">ประเภท</th>
+                    <th class="text-center">งบประมาณ</th>
+                    <th class="text-center">ใช้จ่ายแล้ว (จากงวดงาน)</th>
+                    <th class="text-center">คงเหลือ</th>
+                    <th class="text-center">% ใช้จ่าย</th>
+                    <th class="text-center" >รายละเอียด</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach($items as $row): 
+                $id   = (int)$row['id'];
 
-                    // SUM(phases.amount) ไม่กรองวันที่
-                    $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+                // ✅ ใช้งบประมาณรวมจาก budget_detail (เชื่อมกับ load_detail)
+                $req  = isset($sumDetailByItem[$id]) 
+                          ? (float)$sumDetailByItem[$id] 
+                          : 0.0;
 
-                    $rem  = max(0, $req - $used);
-                    $pct  = $req > 0 ? ($used / $req * 100) : 0;
-                ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($row['item_name']); ?></td>
-                        <td><?php echo number_format($req, 2); ?></td>
-                        <td><?php echo number_format($used, 2); ?></td>
-                        <td><?php echo number_format($rem, 2); ?></td>
-                        <td><?php echo number_format($pct, 2); ?>%</td>
-                        <td><button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">ดู</button></td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (!$items): ?>
-                    <tr><td colspan="6" class="text-center text-muted">ไม่พบข้อมูลปีงบ <?php echo htmlspecialchars($selectedYear); ?></td></tr>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                // SUM(phases.amount) ไม่กรองวันที่
+                $used = isset($spentAllByItem[$id]) ? (float)$spentAllByItem[$id] : 0.0;
+
+                $rem  = max(0, $req - $used);
+                $pct  = $req > 0 ? ($used / $req * 100) : 0;
+            ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+                    <td class="text-end"><?php echo number_format($req, 2); ?></td>
+                    <td class="text-end"><?php echo number_format($used, 2); ?></td>
+                    <td class="text-end"><?php echo number_format($rem, 2); ?></td>
+                    <td class="text-end"><?php echo number_format($pct, 2); ?>%</td>
+                    <td class="text-center">
+                        <button class="btn btn-info btn-sm" onclick="loadDetail(<?php echo $id; ?>)">
+                            ดู
+                        </button>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (!$items): ?>
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        ไม่พบข้อมูลปีงบ <?php echo htmlspecialchars($selectedYear); ?>
+                    </td>
+                </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 
         <!-- ====================== บล็อกไตรมาส (ดึงจาก phases.payment_date) ====================== -->
         <div class="card p-3 mb-4">

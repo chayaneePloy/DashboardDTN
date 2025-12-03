@@ -2,6 +2,8 @@
 require 'db.php';
 session_start();
 
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+
 $id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
 
 /**
@@ -42,6 +44,10 @@ if (isset($_POST['add'])) {
         ':step_order' => (int)$_POST['step_order'],
         ':step_date' => $iso_date
     ]);
+
+    // flash message
+    $_SESSION['flash_success'] = "เพิ่มขั้นตอนใหม่เรียบร้อยแล้ว!";
+
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -61,6 +67,10 @@ if (isset($_POST['update'])) {
         ':is_completed' => isset($_POST['is_completed']) ? 1 : 0,
         ':id' => (int)$_POST['id']
     ]);
+
+    // flash message
+    $_SESSION['flash_success'] = "บันทึกการแก้ไขสำเร็จแล้ว!";
+
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -69,6 +79,10 @@ if (isset($_POST['update'])) {
 if (isset($_GET['delete'])) {
     $stmt = $pdo->prepare("DELETE FROM project_steps WHERE id=:id");
     $stmt->execute([':id'=>(int)$_GET['delete']]);
+
+    // flash message
+    $_SESSION['flash_success'] = "ลบขั้นตอนเรียบร้อยแล้ว!";
+
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -92,6 +106,10 @@ if (isset($_POST['save_all'])) {
             ]);
         }
     }
+
+    // flash message
+    $_SESSION['flash_success'] = "บันทึกข้อมูลทั้งหมดเรียบร้อยแล้ว!";
+
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -105,40 +123,89 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>จัดการขั้นตอนโครงการ (ปี พ.ศ.)</title>
-<link rel="icon" type="image/png" href="assets/logoio.ico">
-<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<title>Dashboard งบประมาณ</title>
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 <style>
 body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
 table input{width:100%;font-size:.9rem;}
 .form-text code{background:#f1f3f5;padding:0 .25rem;border-radius:.25rem;}
 </style>
 </head>
-<body class="container py-4">
+<body >
 
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="index.php">
+      📊 Dashboard การจ่ายงวด
+    </a>
+
+    <!-- Hamburger -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Menu -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+        <!-- หน้าแรก -->
+        <li class="nav-item">
+          <a class="nav-link text-white" href="index.php">
+            <i class="bi bi-house"></i> หน้าหลัก
+          </a>
+        </li>
+
+        <!-- กลับ -->
+        <li class="nav-item">
+          <a class="nav-link text-white" href="steps.php?id_detail=<?= $id_detail ?>">
+            <i class="bi bi-arrow-left"></i> กลับ
+          </a>
+        </li>
+
+      </ul>
+    </div>
+
+  </div>
+</nav>
+  <div class="container">
 <h2 class="mb-4">📌 จัดการขั้นตอนโครงการ (ปี พ.ศ.)</h2>
+
+
+<?php if(!empty($_SESSION['flash_success'])): ?>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <?= h($_SESSION['flash_success']); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <?php unset($_SESSION['flash_success']); ?>
+<?php endif; ?>
 
 <!-- เพิ่มขั้นตอนใหม่ -->
 <div class="card mb-4 shadow-sm">
   <div class="card-header bg-success text-white fw-bold">➕ เพิ่มขั้นตอนใหม่</div>
   <div class="card-body">
-    <form method="post" id="add-form">
-      <div class="row g-2">
-        <div class="col-md-3">
-          <input type="text" name="step_name" class="form-control" placeholder="ชื่อขั้นตอน" required>
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="step_order" class="form-control" placeholder="ลำดับ" required>
-        </div>
-        <div class="col-md-3">
-          <input type="text" name="step_date" id="step_date" class="form-control" placeholder="วว/ดด/พ.ศ.">
-          <div class="form-text">ตัวอย่าง: <code>10/11/2568</code> หรือเลือกจากปฏิทิน</div>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" name="add" class="btn btn-success w-100">เพิ่ม</button>
-        </div>
+    <form method="post" id="add-form" class="row g-2">
+      <div class="col-md-3">
+        <input type="text" name="step_name" class="form-control" placeholder="ชื่อขั้นตอน" required>
+      </div>
+      <div class="col-md-2">
+        <input type="number" name="step_order" class="form-control" placeholder="ลำดับ" required>
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="step_date" id="step_date" class="form-control" placeholder="วว/ดด/พ.ศ.">
+        <div class="form-text">ตัวอย่าง: <code>10/11/2568</code> หรือเลือกจากปฏิทิน</div>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" name="add" class="btn btn-success w-100">เพิ่ม</button>
       </div>
     </form>
   </div>
@@ -160,7 +227,7 @@ table input{width:100%;font-size:.9rem;}
       <?php if($steps): foreach($steps as $i=>$s): ?>
         <tr>
           <td><input type="number" name="steps[<?= $i ?>][step_order]" value="<?= (int)$s['step_order'] ?>" class="form-control text-center"></td>
-          <td><input type="text" name="steps[<?= $i ?>][step_name]" value="<?= htmlspecialchars($s['step_name']) ?>" class="form-control"></td>
+          <td><input type="text" name="steps[<?= $i ?>][step_name]" value="<?= h($s['step_name']) ?>" class="form-control"></td>
           <td><input type="text" name="steps[<?= $i ?>][step_date]" value="<?= display_thai_date($s['step_date']) ?>" class="form-control"></td>
           <td class="text-center"><input type="checkbox" name="steps[<?= $i ?>][is_completed]" <?= $s['is_completed']?'checked':'' ?>> เสร็จแล้ว</td>
           <td class="text-center">
@@ -176,10 +243,8 @@ table input{width:100%;font-size:.9rem;}
   </div>
 </div>
 </form>
-
-<div class="mt-4">
-  <a href="steps.php?id_detail=<?= $id_detail ?>" class="btn btn-secondary">⬅ กลับ</a>
 </div>
+
 
 <!-- JS: แปลงปฏิทิน/แสดง พ.ศ. -->
 <script>
@@ -207,6 +272,7 @@ table input{width:100%;font-size:.9rem;}
   });
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

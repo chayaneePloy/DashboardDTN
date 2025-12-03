@@ -14,6 +14,8 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csrf_token = $_SESSION['csrf_token'];
 
+
+
 // ===================== LOAD PARAMS =====================
 $phase_id   = $_GET['phase_id'] ?? $_POST['phase_id'] ?? null;
 $return_url = $_GET['return']    ?? $_POST['return_url'] ?? '';
@@ -160,26 +162,59 @@ if (!$phase) {
 <head>
   <meta charset="UTF-8">
   <title>แก้ไขงวดงาน #<?= h($phase['phase_id']) ?></title>
-  <link rel="icon" type="image/png" href="assets/logoio.ico">
-<link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <style>
     .form-section-title { font-weight: 700; color:#0d6efd; }
     .number { text-align: right; }
   </style>
 </head>
 <body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="index.php">
+      📊 Dashboard การจ่ายงวด
+    </a>
+
+    <!-- Hamburger -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Menu -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="index.php">
+            <i class="bi bi-house"></i> หน้าหลัก
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-white" href="javascript:history.back()">
+            <i class="bi bi-arrow-left"></i> กลับ
+          </a>
+        </li>
+
+      </ul>
+    </div>
+
+  </div>
+</nav>
 <div class="container my-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h3 class="form-section-title">🛠️ แก้ไขงวดงาน (Phase)</h3>
-    <div>
-      <?php if ($return_url): ?>
-        <a href="<?= h($return_url) ?>" class="btn btn-outline-secondary">กลับ</a>
-      <?php else: ?>
-        <a href="javascript:history.back()" class="btn btn-outline-secondary">กลับ</a>
-      <?php endif; ?>
-    </div>
+    <h3 class="form-section-title">🛠️ แก้ไขงวดงาน</h3>
+  
   </div>
 
   <?php if ($successMsg): ?>
@@ -228,11 +263,6 @@ if (!$phase) {
         <div class="col-md-2">
           <label class="form-label">งวดที่</label>
           <input type="number" name="phase_number" class="form-control" value="<?= h($phase['phase_number']) ?>" min="1" required>
-        </div>
-
-        <div class="col-md-5">
-          <label class="form-label">ชื่อ (Phase Name)</label>
-          <input type="text" name="phase_name" class="form-control" value="<?= h($phase['phase_name']) ?>">
         </div>
 
         <div class="col-md-5">
