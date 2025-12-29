@@ -212,7 +212,7 @@ if ($selected_detail) {
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>เพิ่มสัญญา (Contract)</title>
+  <title>เพิ่มสัญญา </title>
   <link rel="icon" type="image/png" href="assets/logoio.ico">
 <link rel="shortcut icon" type="image/png" href="assets/logoio.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -225,7 +225,7 @@ if ($selected_detail) {
 <body class="bg-light">
 <div class="container my-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h3 class="form-section-title">📝 เพิ่มสัญญา (Contract)</h3>
+    <h3 class="form-section-title">📝 เพิ่มสัญญา </h3>
     <div>
       <?php if ($return_url): ?>
         <a href="<?= h($return_url) ?>" class="btn btn-outline-secondary">กลับ</a>
@@ -297,13 +297,13 @@ if ($selected_detail) {
 
         <!-- ข้อมูลสัญญา -->
         <div class="col-md-6">
-          <label class="form-label">เลขสัญญา (contract_number)</label>
+          <label class="form-label">เลขสัญญา </label>
           <input type="text" class="form-control" name="contract_number" 
                  value="<?= h($_POST['contract_number'] ?? '') ?>" required>
         </div>
 
         <div class="col-md-6">
-          <label class="form-label">ชื่อบริษัท (contractor_name)</label>
+          <label class="form-label">ชื่อบริษัท</label>
           <input type="text" class="form-control" name="contractor_name" 
                  value="<?= h($_POST['contractor_name'] ?? '') ?>" required>
         </div>

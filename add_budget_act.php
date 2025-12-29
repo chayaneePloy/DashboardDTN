@@ -3,19 +3,35 @@
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// ---------------- ปีงบประมาณจาก Dashboard (ถ้ามี) ----------------
-$selectedYear = isset($_GET['year']) ? intval($_GET['year']) : (date('Y') + 543);
+// ปีเริ่มต้นสำหรับช่องกรอก
+$selectedYear = date('Y') + 543;
+
+// ตัวแปรเก็บข้อความแจ้งเตือน/สถานะ
+$error = '';
+$msg   = $_GET['msg'] ?? '';
 
 // ---------------- เพิ่มข้อมูล ----------------
 if (isset($_POST['add'])) {
     $amount = $_POST['budget_act_amount'] ?? 0;
-    $year   = $_POST['fiscal_year'] ?? $selectedYear;
+    $year   = $_POST['fiscal_year'] ?? (date('Y') + 543);
 
-    $stmt = $pdo->prepare("INSERT INTO budget_act (budget_act_amount, fiscal_year) VALUES (?, ?)");
-    $stmt->execute([$amount, $year]);
+    // เช็คว่ามีปีนี้อยู่แล้วหรือยัง
+    $chk = $pdo->prepare("SELECT COUNT(*) FROM budget_act WHERE fiscal_year = ?");
+    $chk->execute([$year]);
+    $exists = $chk->fetchColumn();
 
-    header("Location: add_budget_act.php?year=$year&msg=added");
-    exit;
+    if ($exists > 0) {
+        // ถ้ามีแล้ว ไม่บันทึก และแจ้งเตือน
+        $error = "มีข้อมูลงบประมาณปี {$year} อยู่แล้ว";
+        $selectedYear = $year; // ให้ช่องกรอกยังคงแสดงปีที่กรอกมา
+    } else {
+        // ยังไม่มี -> บันทึกได้
+        $stmt = $pdo->prepare("INSERT INTO budget_act (budget_act_amount, fiscal_year) VALUES (?, ?)");
+        $stmt->execute([$amount, $year]);
+
+        header("Location: add_budget_act.php?msg=added");
+        exit;
+    }
 }
 
 // ---------------- แก้ไขข้อมูล ----------------
@@ -27,7 +43,7 @@ if (isset($_POST['update'])) {
     $stmt = $pdo->prepare("UPDATE budget_act SET budget_act_amount=?, fiscal_year=? WHERE id=?");
     $stmt->execute([$amount, $year, $id]);
 
-    header("Location: add_budget_act.php?year=$year&msg=updated");
+    header("Location: add_budget_act.php?msg=updated");
     exit;
 }
 
@@ -35,18 +51,15 @@ if (isset($_POST['update'])) {
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     $pdo->prepare("DELETE FROM budget_act WHERE id=?")->execute([$id]);
-    header("Location: add_budget_act.php?year=$selectedYear&msg=deleted");
+    header("Location: add_budget_act.php?msg=deleted");
     exit;
 }
 
-// ---------------- ดึงข้อมูลงบตามปีงบประมาณ ----------------
-$stmt = $pdo->prepare("SELECT * FROM budget_act WHERE fiscal_year = ? ORDER BY id DESC");
-$stmt->execute([$selectedYear]);
+// ---------------- ดึงข้อมูลทั้งหมด (ไม่กรองปี) ----------------
+$stmt = $pdo->query("SELECT * FROM budget_act ORDER BY fiscal_year DESC, id DESC");
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// ---------------- ดึงปีทั้งหมดไว้ใน dropdown ----------------
-$allYears = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 ?>
+
 
 <!DOCTYPE html>
 <html lang="th">
@@ -54,25 +67,23 @@ $allYears = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fi
 <meta charset="UTF-8">
 <title>เพิ่ม/แก้ไข งบประมาณตาม พ.ร.บ.</title>
 <!-- Favicon (โลโก้เล็กบนแท็บเว็บ) -->
-    <link rel="icon" type="image/png" href="assets/logoio.ico">
-    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
-    
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<link rel="icon" type="image/png" href="assets/logoio.ico">
+<link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
 body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
 .container { max-width: 950px; }
 .navbar { margin-bottom: 20px; }
-
 .navbar-dark .navbar-nav .nav-link:hover {
-    color: #ffeb3b !important;        /* เวลา hover เป็นเหลือง */
+    color: #ffeb3b !important;
 }
-
 .navbar-brand {
     color: #ffffff !important;
 }
@@ -104,7 +115,7 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
         </li>
 
         <li class="nav-item">
-          <a class="nav-link text-white" href="javascript:history.back()">
+          <a class="nav-link text-white" href="index.php">
             <i class="bi bi-arrow-left"></i> กลับ
           </a>
         </li>
@@ -123,11 +134,27 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
     </div>
     <div class="card-body">
 
+      <!-- แสดงข้อความแจ้งเตือน / สถานะ -->
+      <?php if (!empty($error)): ?>
+        <div class="alert alert-danger">
+          <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($msg === 'added'): ?>
+        <div class="alert alert-success">บันทึกงบประมาณใหม่เรียบร้อยแล้ว</div>
+      <?php elseif ($msg === 'updated'): ?>
+        <div class="alert alert-success">แก้ไขงบประมาณเรียบร้อยแล้ว</div>
+      <?php elseif ($msg === 'deleted'): ?>
+        <div class="alert alert-success">ลบข้อมูลงบประมาณเรียบร้อยแล้ว</div>
+      <?php endif; ?>
+
       <!-- ฟอร์มเพิ่มข้อมูล -->
       <form method="POST" class="row g-3 mb-4">
         <div class="col-md-4">
           <label class="form-label">ปีงบประมาณ (พ.ศ.)</label>
-          <input type="number" name="fiscal_year" class="form-control" value="<?= htmlspecialchars($selectedYear) ?>" required>
+          <input type="number" name="fiscal_year" class="form-control"
+                 value="<?= htmlspecialchars($selectedYear) ?>" required>
         </div>
         <div class="col-md-5">
           <label class="form-label">จำนวนงบประมาณ (บาท)</label>
@@ -138,23 +165,10 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
         </div>
       </form>
 
-      <!-- ฟิลเตอร์ปี -->
-      <form method="GET" class="mb-3">
-        <div class="d-flex align-items-center gap-2">
-          <label for="year" class="fw-semibold">ดูข้อมูลงบประมาณของปี:</label>
-          <select name="year" id="year" class="form-select w-auto" onchange="this.form.submit()">
-            <?php foreach ($allYears as $y): ?>
-              <option value="<?= $y ?>" <?= ($y == $selectedYear) ? 'selected' : '' ?>><?= $y ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </form>
-
       <!-- ตารางข้อมูล -->
       <table class="table table-bordered table-striped text-center align-middle">
         <thead class="table-dark">
           <tr>
-            <th>ลำดับ</th>
             <th>ปีงบประมาณ</th>
             <th>จำนวนงบประมาณ (บาท)</th>
             <th>การจัดการ</th>
@@ -164,12 +178,15 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
         <?php if ($rows): ?>
           <?php foreach($rows as $r): ?>
             <tr>
-              <td><?= htmlspecialchars($r['id']) ?></td>
               <td><?= htmlspecialchars($r['fiscal_year']) ?></td>
               <td><?= number_format($r['budget_act_amount'], 2) ?></td>
               <td>
-                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editModal<?= $r['id'] ?>">แก้ไข</button>
-                <a href="?delete=<?= $r['id'] ?>&year=<?= $selectedYear ?>" class="btn btn-danger btn-sm" onclick="return confirm('ยืนยันการลบข้อมูลนี้?')">ลบ</a>
+                <button class="btn btn-warning btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editModal<?= $r['id'] ?>">แก้ไข</button>
+                <a href="?delete=<?= $r['id'] ?>"
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirm('ยืนยันการลบข้อมูลนี้?')">ลบ</a>
               </td>
             </tr>
 
@@ -186,11 +203,13 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
                       <input type="hidden" name="id" value="<?= $r['id'] ?>">
                       <div class="mb-3">
                         <label class="form-label">ปีงบประมาณ</label>
-                        <input type="number" name="fiscal_year" class="form-control" value="<?= $r['fiscal_year'] ?>" required>
+                        <input type="number" name="fiscal_year" class="form-control"
+                               value="<?= $r['fiscal_year'] ?>" required>
                       </div>
                       <div class="mb-3">
                         <label class="form-label">จำนวนงบประมาณ (บาท)</label>
-                        <input type="number" name="budget_act_amount" class="form-control" value="<?= $r['budget_act_amount'] ?>" required>
+                        <input type="number" name="budget_act_amount" class="form-control"
+                               value="<?= $r['budget_act_amount'] ?>" required>
                       </div>
                     </div>
                     <div class="modal-footer">
@@ -203,7 +222,7 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
             </div>
           <?php endforeach; ?>
         <?php else: ?>
-          <tr><td colspan="4" class="text-muted">ยังไม่มีข้อมูลงบประมาณสำหรับปีนี้</td></tr>
+          <tr><td colspan="3" class="text-muted">ยังไม่มีข้อมูลงบประมาณ</td></tr>
         <?php endif; ?>
         </tbody>
       </table>

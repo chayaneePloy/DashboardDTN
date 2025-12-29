@@ -276,6 +276,7 @@ if ($method === 'POST') {
           </select>
         </div>
 
+
         <!-- Due Date (พ.ศ.) -->
         <div class="col-md-4">
           <label class="form-label">Due Date</label>
@@ -297,7 +298,7 @@ if ($method === 'POST') {
                    id="due_date_fake"
                    placeholder="เลือกวันที่ (พ.ศ.)"
                    value="<?= h(toThaiDisplay($_POST['due_date'] ?? '')) ?>"
-                   readonly>
+                  >
           </div>
         </div>
 
@@ -319,7 +320,7 @@ if ($method === 'POST') {
                    id="completion_date_fake"
                    placeholder="เลือกวันที่ (พ.ศ.)"
                    value="<?= h(toThaiDisplay($_POST['completion_date'] ?? '')) ?>"
-                   readonly>
+                   >
           </div>
         </div>
 
@@ -341,9 +342,18 @@ if ($method === 'POST') {
                    id="payment_date_fake"
                    placeholder="เลือกวันที่ (พ.ศ.)"
                    value="<?= h(toThaiDisplay($_POST['payment_date'] ?? '')) ?>"
-                   readonly>
+                   >
           </div>
         </div>
+<div class="col-md-6">
+  <label class="form-label">หมายเหตุ</label>
+  <textarea
+    class="form-control"
+    name="phase_name"
+    rows="2"
+    placeholder="เช่น ส่งมอบงานงวดแรก / งวดสุดท้าย / หักค่าปรับ"
+  ><?= h($_POST['phase_name'] ?? '') ?></textarea>
+</div>
 
         <div class="col-12 d-flex gap-2 mt-2">
           <button type="submit" class="btn btn-success">บันทึก</button>

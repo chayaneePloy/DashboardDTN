@@ -27,9 +27,14 @@ function normalize_step_date($raw) {
 function display_thai_date($iso) {
     if (!$iso || $iso === '0000-00-00') return '';
     [$y,$m,$d] = explode('-', $iso);
-    $y = (int)$y + 543;
+    $y = (int)$y;
+
+    // ถ้าเป็น ค.ศ. (<2400) ค่อย +543, แต่ถ้าเป็น พ.ศ. อยู่แล้ว ไม่ต้องบวก
+    if ($y < 2400) $y += 543;
+
     return sprintf('%02d/%02d/%04d', (int)$d, (int)$m, $y);
 }
+
 
 // ------------------ เพิ่ม ------------------
 if (isset($_POST['add'])) {
@@ -45,14 +50,12 @@ if (isset($_POST['add'])) {
         ':step_date' => $iso_date
     ]);
 
-    // flash message
     $_SESSION['flash_success'] = "เพิ่มขั้นตอนใหม่เรียบร้อยแล้ว!";
-
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
 
-// ------------------ อัปเดต ------------------
+// ------------------ อัปเดตทีละแถว (ปุ่มไอเท็มเดี่ยว – ถ้ามี) ------------------
 if (isset($_POST['update'])) {
     $iso_date = normalize_step_date($_POST['step_date'] ?? '');
     $stmt = $pdo->prepare("
@@ -68,9 +71,7 @@ if (isset($_POST['update'])) {
         ':id' => (int)$_POST['id']
     ]);
 
-    // flash message
     $_SESSION['flash_success'] = "บันทึกการแก้ไขสำเร็จแล้ว!";
-
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -80,9 +81,7 @@ if (isset($_GET['delete'])) {
     $stmt = $pdo->prepare("DELETE FROM project_steps WHERE id=:id");
     $stmt->execute([':id'=>(int)$_GET['delete']]);
 
-    // flash message
     $_SESSION['flash_success'] = "ลบขั้นตอนเรียบร้อยแล้ว!";
-
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -107,9 +106,7 @@ if (isset($_POST['save_all'])) {
         }
     }
 
-    // flash message
     $_SESSION['flash_success'] = "บันทึกข้อมูลทั้งหมดเรียบร้อยแล้ว!";
-
     header("Location: steps_edit.php?id_detail=".$id_detail);
     exit;
 }
@@ -124,22 +121,22 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
 <meta charset="UTF-8">
 <title>Dashboard งบประมาณ</title>
-    <link rel="icon" type="image/png" href="assets/logoio.ico">
-    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<link rel="icon" type="image/png" href="assets/logoio.ico">
+<link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
 body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
 table input{width:100%;font-size:.9rem;}
 .form-text code{background:#f1f3f5;padding:0 .25rem;border-radius:.25rem;}
 </style>
 </head>
-<body >
+<body>
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
   <div class="container">
@@ -165,9 +162,9 @@ table input{width:100%;font-size:.9rem;}
           </a>
         </li>
 
-        <!-- กลับ -->
+        <!-- กลับไป steps.php?id_detail=... -->
         <li class="nav-item">
-          <a class="nav-link text-white" href="steps.php?id_detail=<?= $id_detail ?>">
+          <a class="nav-link text-white" href="steps.php?id_detail=<?= h($id_detail) ?>">
             <i class="bi bi-arrow-left"></i> กลับ
           </a>
         </li>
@@ -177,74 +174,106 @@ table input{width:100%;font-size:.9rem;}
 
   </div>
 </nav>
-  <div class="container">
-<h2 class="mb-4">📌 จัดการขั้นตอนโครงการ (ปี พ.ศ.)</h2>
 
+<div class="container">
+  <h2 class="mb-4">📌 จัดการขั้นตอนโครงการ (ปี พ.ศ.)</h2>
 
-<?php if(!empty($_SESSION['flash_success'])): ?>
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
-    <?= h($_SESSION['flash_success']); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  <?php if(!empty($_SESSION['flash_success'])): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      <?= h($_SESSION['flash_success']); ?>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php unset($_SESSION['flash_success']); ?>
+  <?php endif; ?>
+
+  <!-- เพิ่มขั้นตอนใหม่ -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-success text-white fw-bold">➕ เพิ่มขั้นตอนใหม่</div>
+    <div class="card-body">
+      <form method="post" id="add-form" class="row g-2">
+        <div class="col-md-3">
+          <input type="text" name="step_name" class="form-control" placeholder="ชื่อขั้นตอน" required>
+        </div>
+        <div class="col-md-2">
+          <input type="number" name="step_order" class="form-control" placeholder="ลำดับ" required>
+        </div>
+        <div class="col-md-3">
+          <input type="text" name="step_date" id="step_date" class="form-control" placeholder="วว/ดด/พ.ศ.">
+          <div class="form-text">ตัวอย่าง: <code>10/11/2568</code> หรือเลือกจากปฏิทิน</div>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" name="add" class="btn btn-success w-100">เพิ่ม</button>
+        </div>
+      </form>
+    </div>
   </div>
-  <?php unset($_SESSION['flash_success']); ?>
-<?php endif; ?>
 
-<!-- เพิ่มขั้นตอนใหม่ -->
-<div class="card mb-4 shadow-sm">
-  <div class="card-header bg-success text-white fw-bold">➕ เพิ่มขั้นตอนใหม่</div>
-  <div class="card-body">
-    <form method="post" id="add-form" class="row g-2">
-      <div class="col-md-3">
-        <input type="text" name="step_name" class="form-control" placeholder="ชื่อขั้นตอน" required>
+  <!-- ตารางขั้นตอน -->
+  <form method="post">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+        <span>🧾 ขั้นตอนทั้งหมด</span>
+        <div class="d-flex gap-2">
+          <a href="steps.php?id_detail=<?= h($id_detail) ?>" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left"></i> กลับไปหน้ารายการขั้นตอน
+          </a>
+          <button type="submit" name="save_all" class="btn btn-warning btn-sm">
+            💾 บันทึกทั้งหมด
+          </button>
+        </div>
       </div>
-      <div class="col-md-2">
-        <input type="number" name="step_order" class="form-control" placeholder="ลำดับ" required>
+      <div class="card-body p-0">
+        <table class="table table-bordered align-middle m-0">
+          <thead class="table-light">
+            <tr>
+              <th>ลำดับ</th>
+              <th>ชื่อขั้นตอน</th>
+              <th>วันที่ (พ.ศ.)</th>
+              <th>สถานะ</th>
+              <th width="150">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+          <?php if($steps): foreach($steps as $i=>$s): ?>
+            <tr>
+              <td>
+                <input type="number" name="steps[<?= $i ?>][step_order]" value="<?= (int)$s['step_order'] ?>" class="form-control text-center">
+              </td>
+              <td>
+                <input type="text" name="steps[<?= $i ?>][step_name]" value="<?= h($s['step_name']) ?>" class="form-control">
+              </td>
+              <td>
+                <input type="text" name="steps[<?= $i ?>][step_date]" value="<?= display_thai_date($s['step_date']) ?>" class="form-control">
+              </td>
+              <td class="text-center">
+                <input type="checkbox" name="steps[<?= $i ?>][is_completed]" <?= $s['is_completed']?'checked':'' ?>> เสร็จแล้ว
+              </td>
+              <td class="text-center">
+                <input type="hidden" name="steps[<?= $i ?>][id]" value="<?= (int)$s['id'] ?>">
+                <a href="?id_detail=<?= h($id_detail) ?>&delete=<?= (int)$s['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('ลบขั้นตอนนี้หรือไม่?')">
+                  ลบ
+                </a>
+              </td>
+            </tr>
+          <?php endforeach; else: ?>
+            <tr>
+              <td colspan="5" class="text-center text-muted">ยังไม่มีขั้นตอน</td>
+            </tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
       </div>
-      <div class="col-md-3">
-        <input type="text" name="step_date" id="step_date" class="form-control" placeholder="วว/ดด/พ.ศ.">
-        <div class="form-text">ตัวอย่าง: <code>10/11/2568</code> หรือเลือกจากปฏิทิน</div>
-      </div>
-      <div class="col-md-2">
-        <button type="submit" name="add" class="btn btn-success w-100">เพิ่ม</button>
-      </div>
-    </form>
+    </div>
+  </form>
+
+  <!-- ปุ่มกลับด้านล่างอีกจุด เผื่อเลื่อนมาล่างสุด -->
+  <div class="mt-3 text-end">
+    <a href="steps.php?id_detail=<?= h($id_detail) ?>" class="btn btn-secondary">
+      <i class="bi bi-arrow-left"></i> กลับไปหน้า steps
+    </a>
   </div>
+
 </div>
-
-<!-- ตารางขั้นตอน -->
-<form method="post">
-<div class="card shadow-sm">
-  <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
-    <span>🧾 ขั้นตอนทั้งหมด</span>
-    <button type="submit" name="save_all" class="btn btn-warning btn-sm">💾 บันทึกทั้งหมด</button>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-bordered align-middle m-0">
-      <thead class="table-light">
-        <tr><th>ลำดับ</th><th>ชื่อขั้นตอน</th><th>วันที่ (พ.ศ.)</th><th>สถานะ</th><th width="150">จัดการ</th></tr>
-      </thead>
-      <tbody>
-      <?php if($steps): foreach($steps as $i=>$s): ?>
-        <tr>
-          <td><input type="number" name="steps[<?= $i ?>][step_order]" value="<?= (int)$s['step_order'] ?>" class="form-control text-center"></td>
-          <td><input type="text" name="steps[<?= $i ?>][step_name]" value="<?= h($s['step_name']) ?>" class="form-control"></td>
-          <td><input type="text" name="steps[<?= $i ?>][step_date]" value="<?= display_thai_date($s['step_date']) ?>" class="form-control"></td>
-          <td class="text-center"><input type="checkbox" name="steps[<?= $i ?>][is_completed]" <?= $s['is_completed']?'checked':'' ?>> เสร็จแล้ว</td>
-          <td class="text-center">
-            <input type="hidden" name="steps[<?= $i ?>][id]" value="<?= (int)$s['id'] ?>">
-            <a href="?id_detail=<?= $id_detail ?>&delete=<?= $s['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('ลบขั้นตอนนี้หรือไม่?')">ลบ</a>
-          </td>
-        </tr>
-      <?php endforeach; else: ?>
-        <tr><td colspan="5" class="text-center text-muted">ยังไม่มีขั้นตอน</td></tr>
-      <?php endif; ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-</form>
-</div>
-
 
 <!-- JS: แปลงปฏิทิน/แสดง พ.ศ. -->
 <script>
@@ -252,11 +281,10 @@ table input{width:100%;font-size:.9rem;}
   const input = document.getElementById('step_date');
   if(!input) return;
 
-  // เพิ่ม datepicker HTML5 ธรรมดา
+  // เริ่มเป็น date เพื่อเรียก datepicker
   input.type = 'date';
 
   input.addEventListener('change',()=>{
-    // เมื่อเลือกจากปฏิทิน -> แสดง พ.ศ.
     const val = input.value;
     if(!val) return;
     const [y,m,d] = val.split('-').map(v=>parseInt(v,10));
