@@ -4,7 +4,10 @@ $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", ""
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // ปีเริ่มต้นสำหรับช่องกรอก
-$selectedYear = date('Y') + 543;
+$selectedYear = isset($_GET['year']) 
+    ? (int)$_GET['year'] 
+    : (date('Y') + 543);
+
 
 // ตัวแปรเก็บข้อความแจ้งเตือน/สถานะ
 $error = '';
@@ -95,8 +98,8 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
   <div class="container">
 
     <!-- Brand -->
-    <a class="navbar-brand fw-bold" href="index.php">
-      📊 Dashboard การจ่ายงวด
+    <a class="navbar-brand fw-bold" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
+      📊 Dashboard งบประมาณโครงการ
     </a>
 
     <!-- Hamburger -->
@@ -109,13 +112,14 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 
         <li class="nav-item">
-          <a class="nav-link text-white" href="index.php">
+          <a class="nav-link text-white" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
             <i class="bi bi-house"></i> หน้าหลัก
           </a>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link text-white" href="index.php">
+          <a class="nav-link text-white" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>"
+>
             <i class="bi bi-arrow-left"></i> กลับ
           </a>
         </li>
@@ -163,10 +167,18 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
         <div class="col-md-3 align-self-end">
           <button type="submit" name="add" class="btn btn-success w-100">+ เพิ่มงบใหม่</button>
         </div>
+     
       </form>
+<div class="text-danger mb-2 text-end">
+  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+  <strong>หมายเหตุ :</strong>
+  หากต้องการลบปีงบประมาณ ต้องลบโครงการในวงเงินสัญญาที่เกี่ยวข้องก่อน
+</div>
+
 
       <!-- ตารางข้อมูล -->
       <table class="table table-bordered table-striped text-center align-middle">
+        
         <thead class="table-dark">
           <tr>
             <th>ปีงบประมาณ</th>
@@ -229,6 +241,7 @@ body { font-family: 'Sarabun', sans-serif; background:#f7f9fc; }
     </div>
   </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

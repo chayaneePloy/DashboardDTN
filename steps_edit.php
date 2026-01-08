@@ -143,7 +143,7 @@ table input{width:100%;font-size:.9rem;}
 
     <!-- Brand -->
     <a class="navbar-brand fw-bold" href="index.php">
-      📊 Dashboard การจ่ายงวด
+      📊 Dashboard การจ่ายงวดงาน
     </a>
 
     <!-- Hamburger -->

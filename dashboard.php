@@ -58,7 +58,7 @@ foreach ($items as $item) {
 
 // -------------------- สรุปยอดตามประเภทงบ 4 กล่อง --------------------
 $categories = [
-    'งบการลงทุน',
+    'งบลงทุน',
     'งบดำเนินงาน',
     'งบรายจ่ายอื่น',
     'งบบูรณาการ',
@@ -167,7 +167,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
   <div class="container">
 
     <!-- Brand -->
-    <a class="navbar-brand fw-bold" href="index.php">
+    <a class="navbar-brand fw-bold" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>"">
       📊 Dashboard การจ่ายงวด
     </a>
 
@@ -181,13 +181,13 @@ $totalProjects = (int)$countStmt->fetchColumn();
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 
         <li class="nav-item">
-          <a class="nav-link text-white" href="index.php">
+          <a class="nav-link text-white" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
             <i class="bi bi-house"></i> หน้าหลัก
           </a>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link text-white" href="index.php">
+          <a class="nav-link text-white" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
             <i class="bi bi-arrow-left"></i> กลับ
           </a>
         </li>
@@ -253,12 +253,12 @@ $totalProjects = (int)$countStmt->fetchColumn();
     <div class="col-12 col-md-6 col-lg-3">
       <div class="card shadow-sm h-100 border-start border-4 border-success">
         <div class="card-body">
-          <h6 class="mb-1">งบการลงทุน</h6>
+          <h6 class="mb-1">งบลงทุน</h6>
           <small class="text-muted">
             <?= $selectedYear ? 'ปีงบประมาณ '.htmlspecialchars($selectedYear) : 'ทั้งปีงบประมาณ' ?>
           </small>
           <div class="fs-5 fw-bold text-success mt-2">
-            <?= number_format($summary['งบการลงทุน'], 2) ?> บาท
+            <?= number_format($summary['งบลงทุน'], 2) ?> บาท
           </div>
         </div>
       </div>
@@ -325,7 +325,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
 
             <!-- ปุ่มลบงบหลัก -->
             <a
-              href="dashboard.php?year=<?= urlencode($selectedYear) ?>&delete=<?= $item['id'] ?>"
+              href="dashboard.php?delete=<?= $item['id'] ?>&year=<?= urlencode($selectedYear) ?>"
               class="btn btn-sm btn-danger"
               onclick="return confirm('ต้องการลบงบ &quot;<?= htmlspecialchars($item['item_name'], ENT_QUOTES) ?>&quot; ทั้งชุดหรือไม่?');"
             >

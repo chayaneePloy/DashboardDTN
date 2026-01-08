@@ -96,6 +96,7 @@ if ($selected_year && $selected_item) {
             bd.requested_amount,        -- ✅ ใช้ 'งบที่ขอ' จาก budget_detail
             c.contract_id,
             c.contract_number, 
+            c.contract_date,   
             c.contractor_name,
             p.phase_id, p.phase_number, p.phase_name, p.amount, 
             p.due_date, p.completion_date, p.status, p.payment_date
@@ -214,6 +215,12 @@ if (!empty($phases)) {
     $js_month_labels  = array_keys($byMonth);
     $js_month_values  = array_map(fn($v)=> round($v,2), array_values($byMonth));
 }
+function thai_date($date){
+    if (!$date) return '-';
+    $t = strtotime($date);
+    return date('d/m/', $t) . (date('Y', $t) + 543);
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -281,8 +288,9 @@ if (!empty($phases)) {
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
 
-            <a class="navbar-brand fw-bold" href="index.php">
-                📊 Dashboard การจ่ายงวด
+            <a class="navbar-brand fw-bold" href="index.php?year=<?= htmlspecialchars($selected_year) ?>&quarter=<?= htmlspecialchars($selected_quarter ?: 1) ?>">
+                📊Dashboard งบประมาณโครงการ
+
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
@@ -292,15 +300,18 @@ if (!empty($phases)) {
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link" href="index.php">
+                        <a class="nav-link" href="index.php?year=<?= htmlspecialchars($selected_year) ?>&quarter=<?= htmlspecialchars($selected_quarter ?: 1) ?>">
                             <i class="bi bi-house"></i> หน้าหลัก
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="index.php">
+                        <a class="nav-link"
+                            href="index.php?year=<?= htmlspecialchars($selected_year) ?>&quarter=<?= htmlspecialchars($selected_quarter ?: 1) ?>">
                             <i class="bi bi-arrow-left"></i> กลับ
                         </a>
                     </li>
+
+
                 </ul>
             </div>
 
@@ -403,13 +414,13 @@ if (!empty($phases)) {
                                 <td class="text-end text-danger"><?= number_format($row['remain'], 2) ?></td>
                                 <td class="text-end 
     <?= ($row['paid_pct'] > 100) ? 'text-danger fw-bold bg-danger-subtle' : '' ?>">
-    <?= number_format($row['paid_pct'], 1) ?>%
-    <?php if ($row['paid_pct'] > 100): ?>
-        <div class="text-danger small fw-semibold mt-1">
-            ⚠️ โปรดตรวจสอบ จำนวนเงินเนื่องจาก เกินกว่างบที่ขอ
-        </div>
-    <?php endif; ?>
-</td>
+                                    <?= number_format($row['paid_pct'], 1) ?>%
+                                    <?php if ($row['paid_pct'] > 100): ?>
+                                    <div class="text-danger small fw-semibold mt-1">
+                                        ⚠️ โปรดตรวจสอบ จำนวนเงินเนื่องจาก เกินกว่างบที่ขอ
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
 
                             </tr>
                             <?php endforeach; ?>
@@ -446,15 +457,15 @@ if (!empty($phases)) {
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped mb-0">
-                        <thead class="table-light sticky-head">
+                        <thead class="table-light sticky-head text-center">
                             <tr>
-                                <th class="center">งวด/ชื่อ</th>
+                                <th>งวด/ชื่อ</th>
                                 <th>วันครบกำหนด</th>
                                 <th>วันที่เสร็จสิ้น</th>
                                 <th>วันที่จ่าย</th>
-                                <th class="number">จำนวนเงิน (บาท)</th>
+                                <th>จำนวนเงิน (บาท)</th>
                                 <th>สถานะ</th>
-                                <th>หมายเหตุ</th>
+                                <th>การดำเนินการ</th>
                                 <th>แก้ไข</th>
                             </tr>
                         </thead>
@@ -483,6 +494,7 @@ if (!empty($phases)) {
           $item_name       = $p['item_name'];
           $contract_number = $p['contract_number'];
           $contractor_name = $p['contractor_name'];
+          $contractDateTH = thai_date($p['contract_date']);
           $requested_amt   = (float)($p['requested_amount'] ?? 0);
 
           echo '<tr class="table-primary">
@@ -491,8 +503,9 @@ if (!empty($phases)) {
                       <div>
                         โครงการ: '.htmlspecialchars($currentProject).'<br>
                         <span class="fw-normal">
-                          งบประมาณ: '.htmlspecialchars($item_name).' |
+                          
                           เลขสัญญา: '.htmlspecialchars($contract_number).' |
+                          วันที่สัญญา: '.$contractDateTH.' |
                           ผู้รับจ้าง: '.htmlspecialchars($contractor_name).' |
                           <span class="text-success">งบที่ขอ: '.number_format($requested_amt, 2).'</span>
                         </span>
@@ -523,19 +536,19 @@ if (!empty($phases)) {
       $editUrl = 'edit_phase.php?phase_id='.urlencode($p['phase_id']).'&return='.urlencode($_SERVER['REQUEST_URI']);
 ?>
                             <tr>
-                                <td><?= htmlspecialchars($phaseLabel) ?></td>
+                                <td class="text-end"><?= htmlspecialchars($phaseLabel) ?></td>
 
-                                <td><?= $p['due_date'] ? date("d/m/Y", strtotime($p['due_date'])) : '-' ?></td>
-                                <td><?= $p['completion_date'] ? date("d/m/Y", strtotime($p['completion_date'])) : '-' ?>
+                                <td class="text-end"><?= $p['due_date'] ? date("d/m/Y", strtotime($p['due_date'])) : '-' ?></td>
+                                <td class="text-end"><?= $p['completion_date'] ? date("d/m/Y", strtotime($p['completion_date'])) : '-' ?>
                                 </td>
-                                <td><?= $p['payment_date'] ? date("d/m/Y", strtotime($p['payment_date'])) : '-' ?></td>
+                                <td class="text-end"><?= $p['payment_date'] ? date("d/m/Y", strtotime($p['payment_date'])) : '-' ?></td>
                                 <td class="number"><?= number_format($amount, 2) ?></td>
-                                <td><?= htmlspecialchars((string)$p['status']) ?></td>
+                                <td class="text-end"><?= htmlspecialchars((string)$p['status']) ?></td>
                                 <!-- ✅ หมายเหตุ -->
-                                <td>
+                                <td class="text-end">
                                     <?= htmlspecialchars(mb_strimwidth($p['phase_name'], 0, 60, '…', 'UTF-8')) ?>
                                 </td>
-                                <td><a class="btn btn-sm btn-outline-primary" href="<?= $editUrl ?>">แก้ไข</a></td>
+                                <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= $editUrl ?>">แก้ไข</a></td>
                             </tr>
                             <?php endforeach; ?>
 

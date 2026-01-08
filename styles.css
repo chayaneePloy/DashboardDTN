@@ -58,17 +58,24 @@
   --bs-body-bg: #fff;
 }
 .bg-indigo-300 { background-color: #a370f7 !important; }
+.bg-purple-400 { background-color: #865dd3 !important; }
+.bg-purple-500 { background-color: hsl(261, 57%, 51%) !important; }
 .bg-purple-700 { background-color: #5a32a3 !important; }
+.bg-blue-200 {background-color: #114691 !important; }
 .bg-blue-300 { background-color: #6ea8fe !important; }
 .bg-blue-400 { background-color: #3d8bfd!important; }
 .bg-blue-500 { background-color: #0d6efd !important; }
 .bg-blue-600 { background-color: #0a58ca !important; }
+.bg-blue-700 {background-color: #1863cd !important;   }
+
 .bg-blue-800 { background-color: #052c65 !important; }
 .bg-cyan-500 { background-color: #0dcaf0 !important; }
 .bg-green-600 { background-color: #198754 !important; }
 .bg-orange-400 { background-color: #ff922b !important; }
 .bg-orange-600 { background-color: #fd7e14 !important; }
-.bg-red-600 { background-color: #dc3545 !important; }
+.bg-red-600 { background-color: #71131cc5 !important; }
+
+.bg-green-700 { background-color: #072d08c5 !important; }
 .navbar-dark .navbar-nav .nav-link:hover {
     color: #ffeb3b !important;        /* เวลา hover เป็นเหลือง */
 }

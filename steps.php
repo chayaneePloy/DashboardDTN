@@ -248,8 +248,7 @@ $phase_sql = "
     FROM phases p
     JOIN contracts c ON p.contract_detail_id = c.contract_id
     WHERE c.detail_item_id = :id_detail
-    ORDER BY CAST(REGEXP_SUBSTR(p.phase_name, '[0-9]+') AS UNSIGNED) ASC, 
-             p.phase_id ASC
+     ORDER BY p.phase_number ASC
 ";
 $phase_st = $pdo->prepare($phase_sql);
 $phase_st->execute([':id_detail' => $id_detail]);
@@ -276,6 +275,32 @@ $st = $pdo->prepare("SELECT budget_item_id FROM budget_detail WHERE id_detail = 
 $st->execute([':id_detail' => $id_detail]);
 $item_id = (int)($st->fetchColumn() ?: 0);
 // ---------------- ฟังก์ชันแปลงวันที่ไทย (แสดงเป็น พ.ศ. เสมอ) ----------------
+
+// ---------------- Progress งวดงาน (อิง phase_number + status) ----------------
+
+// งวดทั้งหมด (นับจาก phase_number)
+$total_phases = count($phases);
+
+$completed_phases = 0;
+
+// สถานะที่ถือว่า "งวดเสร็จแล้ว"
+$finished_status = [
+    'จ่ายแล้ว',
+    'จ่ายครบ',
+    'เสร็จสิ้น',
+    'เสร็จสิ้นแล้ว'
+];
+
+foreach ($phases as $p) {
+    if (in_array(trim($p['status']), $finished_status, true)) {
+        $completed_phases++;
+    }
+}
+// คำนวณเปอร์เซ็นต์ความก้าวหน้างวด
+$phase_percent = ($total_phases > 0)
+    ? round(($completed_phases / $total_phases) * 100)
+    : 0;
+
 
 
 
@@ -365,7 +390,8 @@ $item_id = (int)($st->fetchColumn() ?: 0);
 
             <!-- Brand -->
             <a class="navbar-brand fw-bold" href="index.php">
-                📊 Dashboard การจ่ายงวด
+                📊Dashboard งบประมาณโครงการ
+
             </a>
 
             <!-- Hamburger -->
@@ -388,7 +414,7 @@ $item_id = (int)($st->fetchColumn() ?: 0);
                         </a>
                     </li>
                 </ul>
-           </div>
+            </div>
         </div>
     </nav>
 
@@ -397,8 +423,8 @@ $item_id = (int)($st->fetchColumn() ?: 0);
         <!-- Project Overview -->
         <div class="card shadow-lg border-0 mb-4">
             <div class="card-body text-center">
-                <h2 class="fw-bold text-primary"><?= htmlspecialchars($detail_name) ?></h2>
-                <p class="text-muted">ติดตามความก้าวหน้าของโครงการ</p>
+                <h2 class="fw-bold text-primary text-break"><?= htmlspecialchars($detail_name) ?></h2>
+                <p class="text-muted">ติดตามความก้าวหน้าของโครงการขั้นตอนจัดซื้อจัดจ้าง</p>
 
                 <div class="progress my-3" style="height: 22px;">
                     <div class="progress-bar bg-success fw-bold" role="progressbar" style="width: <?= $percent ?>%;">
@@ -548,19 +574,7 @@ $item_id = (int)($st->fetchColumn() ?: 0);
                                         <textarea name="step_description" class="form-control"
                                             rows="3"><?= htmlspecialchars($step['step_description']) ?></textarea>
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label">ขั้นตอนย่อย</label>
-                                        <textarea name="sub_steps" class="form-control"
-                                            rows="3"><?= htmlspecialchars($step['sub_steps']) ?></textarea>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label">เอกสาร (อัปโหลดใหม่เพื่อแทนที่)</label>
-                                        <input type="file" name="document_file" class="form-control">
-                                        <?php if(!empty($step['document_path'])): ?>
-                                        <div class="form-text">ไฟล์ปัจจุบัน:
-                                            <?= htmlspecialchars($step['document_path']) ?></div>
-                                        <?php endif; ?>
-                                    </div>
+
                                 </div>
                             </div>
 
@@ -581,9 +595,43 @@ $item_id = (int)($st->fetchColumn() ?: 0);
 
     <!-- ✅ ตาราง phases -->
     <div class="container">
-        <div class="card shadow-sm mt-5">
-            <div class="card-header bg-success text-white fw-bold">
-                <div>💰 งวดงานของโครงการ (Phases)</div>
+        <!-- Timeline Header -->
+        <div class="d-flex align-items-center justify-content-between ">
+            <h4 class="text-secondary mb-0">📍 ขั้นตอนตรวจรับ</h4>
+            <!-- ❌ ไม่มีปุ่มเพิ่มขั้นตอนแล้ว -->
+        </div>
+     <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                                               
+                        <div class="d-flex  justify-content-between align-items-center mb-2">
+                <span class="fw-semibold text-secondary">
+                    ความก้าวหน้างวดงาน
+                </span>
+                <span class="badge bg-green-600 fs-6 px-3">
+                    <?= $completed_phases ?>/<?= $total_phases ?> งวด
+                </span>
+            </div>
+            <div class="progress" style="height: 20px;">
+                <div
+                    class="progress-bar bg-success fw-bold progress-bar-striped progress-bar-animated"
+                    role="progressbar"
+                    style="width: <?= $phase_percent ?>%;"
+                    aria-valuenow="<?= $phase_percent ?>"
+                    aria-valuemin="0"
+                    aria-valuemax="100">
+                    <?= $phase_percent ?>%
+                </div>
+            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
+        <div class="card shadow-sm mt-3">
+            <div class="card-header bg-green-700 text-white fw-bold">
+                <div>💰 งวดงานของโครงการ </div>
                 <div class="mt-1 small ">
                     <strong>เลขสัญญา:</strong> <?= htmlspecialchars($contract_number) ?> &nbsp;|&nbsp;
                     <strong>ผู้รับจ้าง:</strong> <?= htmlspecialchars($contractor_name) ?> &nbsp;|&nbsp;
@@ -594,12 +642,13 @@ $item_id = (int)($st->fetchColumn() ?: 0);
                 <table class="table table-bordered table-striped m-0 text-center align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>งวด/ชื่อ</th>
-                            <th>เริ่ม (พ.ศ.)</th>
-                            <th>สิ้นสุด (พ.ศ.)</th>
-                            <th>วันที่จ่าย (พ.ศ.)</th>
-                            <th>จำนวนเงิน (บาท)</th>
+                            <th>งวดที่</th>
+                            <th>วันที่เริ่ม </th>
+                            <th>วันที่สิ้นสุด</th>
+                            <th>วันที่จ่าย </th>
+                            <th>จำนวนเงิน(บาท)</th>
                             <th>สถานะ</th>
+                            <th>การดำเนินการ</th>
                             <th>แก้ไข</th>
                         </tr>
                     </thead>
@@ -607,14 +656,15 @@ $item_id = (int)($st->fetchColumn() ?: 0);
                         <?php if($phases): foreach($phases as $p): ?>
                         <tr>
                             <td>
-                                งวดที่ <?= htmlspecialchars($p['phase_number']) ?>
-                               
+                                <?= htmlspecialchars($p['phase_number']) ?>
+
                             </td>
                             <td><?= thai_date_full($p['due_date']) ?></td>
                             <td><?= thai_date_full($p['completion_date']) ?></td>
                             <td><?= thai_date_full($p['payment_date']) ?></td>
                             <td class="text-end"><?= number_format($p['amount'], 2) ?></td>
                             <td><?= htmlspecialchars($p['status']) ?></td>
+                            <td><?= htmlspecialchars(mb_strimwidth($p['phase_name'], 0, 30, '...')) ?></td>
                             <td>
                                 <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
                                     <i class="bi bi-pencil-square"></i>
@@ -630,6 +680,20 @@ $item_id = (int)($st->fetchColumn() ?: 0);
                 </table>
             </div>
         </div>
+
+
+
+    
+    
+   
+    </div>
+
+</div>
+
+     
+
+
+
     </div>
 
     <!-- Footer -->
