@@ -36,7 +36,7 @@ $budget_item_id = $project_detail['budget_item_id'] ?? null;
 
 // --- ดึงเลขสัญญา และ ผู้รับจ้าง (ถ้ามี) จากตาราง contracts
 $contract_stmt = $pdo->prepare("
-    SELECT contract_number, contractor_name, total_amount
+    SELECT contract_number, contractor_name, contract_date, total_amount
     FROM contracts
     WHERE detail_item_id = :id_detail
     ORDER BY contract_id ASC
@@ -58,6 +58,7 @@ $requested_row = $requested->fetch(PDO::FETCH_ASSOC);
 // เตรียมตัวแปรสำหรับแสดงผล
 $contract_number  = $contract['contract_number']    ?? '-';
 $contractor_name  = $contract['contractor_name']    ?? '-';
+$contract_date  = $contract['contract_date']    ?? '-';
 $contract_total   = isset($contract['total_amount']) ? number_format($contract['total_amount'], 2) : '-';
 $requested_amount = isset($requested_row['requested_amount']) ? number_format($requested_row['requested_amount'], 2) : '-';
 
@@ -301,6 +302,30 @@ $phase_percent = ($total_phases > 0)
     ? round(($completed_phases / $total_phases) * 100)
     : 0;
 
+// ---------------- ฟังก์ชันแปลงวันที่เป็น วว/ดด/ปปปป (พ.ศ.) ----------------
+function thai_date_ddmmyyyy($date) {
+    if (!$date || $date === '0000-00-00') return '-';
+
+    $parts = explode('-', $date);
+    if (count($parts) !== 3) return '-';
+
+    [$y, $m, $d] = $parts;
+
+    $y = (int)$y;
+    $m = (int)$m;
+    $d = (int)$d;
+
+    // กันวันที่ 0
+    if ($y === 0 || $m === 0 || $d === 0) return '-';
+
+    // ถ้าเป็น ค.ศ. → แปลงเป็น พ.ศ.
+    if ($y < 2400) {
+        $y += 543;
+    }
+
+    return sprintf('%02d/%02d/%04d', $d, $m, $y);
+}
+
 
 
 
@@ -516,7 +541,7 @@ $phase_percent = ($total_phases > 0)
                         </div>
                         <div class="modal-footer">
                             <button class="btn btn-warning" data-bs-target="#editStepModal<?= $step['id'] ?>"
-                                data-bs-toggle="modal">แก้ไข</button>
+                                data-bs-toggle="modal">เพิ่มข้อมูล</button>
                             <!-- ❌ ตัดปุ่มลบออก ไม่ให้ลบขั้นตอน -->
                         </div>
                     </div>
@@ -635,6 +660,8 @@ $phase_percent = ($total_phases > 0)
                 <div class="mt-1 small ">
                     <strong>เลขสัญญา:</strong> <?= htmlspecialchars($contract_number) ?> &nbsp;|&nbsp;
                     <strong>ผู้รับจ้าง:</strong> <?= htmlspecialchars($contractor_name) ?> &nbsp;|&nbsp;
+                   <strong>วันที่:</strong><?= $contract_date ? thai_date_ddmmyyyy($contract_date) : '-' ?>&nbsp;|&nbsp;
+
                     <strong>งบที่ขอ:</strong> <?= $requested_amount ?> บาท
                 </div>
             </div>

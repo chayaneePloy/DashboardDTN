@@ -2,33 +2,48 @@
 // ================= CONNECT =================
 $pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8","root","");
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
+if (!$years) { $years = [date('Y')]; } // fallback เป็นปีปัจจุบัน (ค.ศ./พ.ศ. แล้วแต่โครงสร้าง)
+
+
+// ปีงบประมาณที่เลือก (คุมทั้งหน้า)
+$year = isset($_GET['year']) ? intval($_GET['year']) : '';
+$selectedYear = $year;
+
+
 function formatDateTH_DMY($date) {
     if (!$date || $date === '0000-00-00') return '';
     $ts = strtotime($date);
-    return date('d/m/', $ts) . (date('Y', $ts) );
+    return date('d/m/', $ts) . (date('Y', $ts) + 543);
 }
+
 
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 // ================= ปีงบประมาณ =================
 $year = $_GET['year'] ?? '';
 $budgetItem = $_GET['budget_item'] ?? 'all'; // หมวดงบ
+$detailId = $_GET['detail_id'] ?? 'all';
+
 $export = $_GET['export'] ?? ''; // excel
 
 // ปีที่มีข้อมูล
-$years = $pdo->query("
-  SELECT DISTINCT fiscal_year 
-  FROM budget_items 
-  ORDER BY fiscal_year DESC
-")->fetchAll(PDO::FETCH_COLUMN);
-
 $budgetItems = [];
 if ($year) {
     $stmt = $pdo->prepare("
         SELECT id, item_name
         FROM budget_items
         WHERE fiscal_year = ?
-        ORDER BY item_name
+        ORDER BY 
+      CASE item_name
+        WHEN 'งบลงทุน'   THEN 1
+        WHEN 'งบบูรณาการ'   THEN 2
+        WHEN 'งบดำเนินงาน'  THEN 3
+        WHEN 'งบรายจ่ายอื่น' THEN 4
+        ELSE 5
+      END,
+      id ASC
     ");
     $stmt->execute([$year]);
     $budgetItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -75,6 +90,11 @@ if ($year) {
         $sql .= " AND bi.id = ? ";
         $params[] = $budgetItem;
     }
+    if ($detailId !== 'all') {
+    $sql .= " AND bd.id_detail = ? ";
+    $params[] = $detailId;
+}
+
 
     $sql .= "
         ORDER BY bi.item_name, bd.detail_name, c.contract_number, p.phase_number
@@ -83,6 +103,32 @@ if ($year) {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+$details = [];
+if ($year) {
+    $sql = "
+        SELECT bd.id_detail, bd.detail_name
+        FROM budget_detail bd
+        JOIN budget_items bi ON bd.budget_item_id = bi.id
+        WHERE bi.fiscal_year = ?
+    ";
+    $params = [$year];
+
+    if ($budgetItem !== 'all') {
+        $sql .= " AND bi.id = ? ";
+        $params[] = $budgetItem;
+    }
+    if ($detailId !== 'all') {
+    $sql .= " AND bd.id_detail = ? ";
+    $params[] = $detailId;
+}
+
+
+    $sql .= " ORDER BY bd.detail_name";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 
@@ -97,8 +143,7 @@ if ($export === 'excel') {
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-    <meta charset="UTF-8">
-    <title>Dashboard งบประมาณโครงการ</title>
+        <title>Dashboard งบประมาณโครงการ</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link rel="icon" type="image/png" href="assets/logoio.ico">
@@ -124,40 +169,73 @@ th { background:#f1f1f1; }
 }
 </style>
 </head>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container">
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="index.php">
+            <img src="assets/logo2.png" alt="Dashboard งบประมาณ" style="height:40px;">
+        </a>
 
-    <!-- Brand -->
-    <a class="navbar-brand fw-bold" href="index.php?year=<?= h($year) ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
-      📊 Dashboard งบประมาณโครงการ
-    </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#mainNavbar" aria-controls="mainNavbar"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <!-- Hamburger -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-    <!-- Menu -->
-    <div class="collapse navbar-collapse" id="mainNavbar">
-      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link active fs-5 text-white px-3"
+                       href="add_budget_act.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                        เพิ่มงบตาม พ.ร.บ.
+                    </a>
+                </li>
 
-        <li class="nav-item">
-          <a class="nav-link text-white" href="index.php?year=<?= h($year) ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
-            <i class="bi bi-house"></i> หน้าหลัก
-          </a>
-        </li>
+                <li class="nav-item">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="dashboard.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                        เพิ่มงบตามวงเงินสัญญา
+                    </a>
+                </li>
 
-        <li class="nav-item">
-          <a class="nav-link text-white" href="index.php?year=<?= h($year) ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>">
+                <li class="nav-item">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="dashboard_report.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                        เพิ่มการจ่ายงวดงาน
+                    </a>
+                </li>
 
-            <i class="bi bi-arrow-left"></i> กลับ
-          </a>
-        </li>
+                <!-- ===== เมนูรายงาน (Dropdown) ===== -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="#" id="reportDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        รายงาน
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="reportDropdown">
+                        <li>
+                            <a class="dropdown-item"
+                               href="report_project_full.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานจัดซื้อจัดจ้าง
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="report.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานการจ่ายงวดงาน
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <!-- =============================== -->
 
-      </ul>
+            </ul>
+             <span class="ms-auto text-white fs-5 fw-semibold d-none d-lg-block">
+        กรมเจรจาการค้าระหว่างประเทศ
+    </span>
+        </div>
     </div>
-
-  </div>
 </nav>
 <body class="bg-light">
 <div class="container my-4">
@@ -170,10 +248,12 @@ th { background:#f1f1f1; }
 </div>
 
 <!-- ================= FILTER ================= -->
-<form class="row g-2 mb-3 no-print">
+<form class="row g-2 align-items-end mb-3 no-print">
+
 
   <!-- ปีงบประมาณ -->
-  <div class="col-md-3">
+  <div class="col-md-2">
+     <label class="form-label">ปีงบประมาณ</label>
     <select name="year" class="form-select" onchange="this.form.submit()">
       <option value="">-- เลือกปีงบประมาณ --</option>
       <?php foreach($years as $y): ?>
@@ -185,9 +265,10 @@ th { background:#f1f1f1; }
   </div>
 
   <!-- หมวดงบ -->
-  <div class="col-md-4">
+  <div class="col-md-3">
+     <label class="form-label">ประเภท</label>
     <select name="budget_item" class="form-select" onchange="this.form.submit()">
-      <option value="all">-- โครงการทั้งหมด --</option>
+      <option value="all">-- ประเภทงบทั้งหมด --</option>
       <?php foreach($budgetItems as $bi): ?>
         <option value="<?=h($bi['id'])?>"
           <?= $budgetItem==$bi['id']?'selected':'' ?>>
@@ -196,15 +277,31 @@ th { background:#f1f1f1; }
       <?php endforeach ?>
     </select>
   </div>
+  <div class="col-md-4">
+     <label class="form-label">โครงการ</label>
+  <select name="detail_id" class="form-select"
+          <?= !$year ? 'disabled' : '' ?>
+          onchange="this.form.submit()">
+    <option value="all">-- ทุกโครงการ --</option>
+    <?php foreach($details as $d): ?>
+      <option value="<?=h($d['id_detail'])?>"
+        <?= $detailId==$d['id_detail']?'selected':'' ?>>
+        <?=h($d['detail_name'])?>
+      </option>
+    <?php endforeach ?>
+  </select>
+</div>
+
 
   <!-- ปุ่ม -->
   <?php if($year): ?>
-  <div class="col-md-5 text-end">
+  <div class="col-md-3 text-end">
     <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
       🖨️ พิมพ์
     </button>
-    <a href="?year=<?=$year?>&budget_item=<?=$budgetItem?>&export=excel"
-       class="btn btn-success">
+    <a href="?year=<?=$year?>&budget_item=<?=$budgetItem?>&detail_id=<?=$detailId?>&export=excel"
+   class="btn btn-success">
+
      📥 Excel
     </a>
   </div>
@@ -219,13 +316,13 @@ th { background:#f1f1f1; }
 <table class="table table table-bordered table-striped">
 <thead class="text-center table-dark">
 <tr >
-  <th>ประเภทโครงการ</th>
+  <th>ประเภท</th>
   <th>โครงการ</th>
   <th>วงเงินตามสัญญา</th>
-  <th>เลขสัญญา</th>
-  <th>บริษัท</th>
+  <th>เลขที่สัญญา</th>
+  <th>ผู้รับจ้าง</th>
   <th>งวด</th>
-  <th>รายละเอียดงวด</th>
+  <th>รายละเอียด</th>
   <th>วันที่เริ่ม</th>
   <th>วันที่สิ้นสุด</th>
   <th class="text-end">จำนวนเงิน</th>
@@ -259,7 +356,12 @@ th { background:#f1f1f1; }
 <td class="date-nowrap"><?= formatDateTH_DMY($r['completion_date']) ?></td>
 
   <td class="text-end"><?=number_format($r['phase_amount'],2)?></td>
-  <td><?=h($r['status'])?></td>
+
+   <td class="text-center">
+        <?= $r['status']
+            ? '<span class="badge bg-success">เสร็จสิ้น</span>'
+            : '<span class="badge bg-warning text-dark">ยังไม่เสร็จ</span>' ?>
+    </td>
 </tr>
 <?php endforeach ?>
 </tbody>

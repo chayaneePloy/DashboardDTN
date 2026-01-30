@@ -30,10 +30,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // 2) ถ้าไม่ซ้ำ -> บันทึกได้
             $stmt = $pdo->prepare("
-                INSERT INTO budget_items (item_name, fiscal_year) 
-                VALUES (?, ?)
-            ");
-            $stmt->execute([$name, $year]);
+    INSERT INTO budget_items 
+    (item_name, requested_amount, fiscal_year, status) 
+    VALUES (?, ?, ?, ?)
+");
+
+$requested_amount = 0;
+$status = 1; // สถานะใช้งาน
+
+$stmt->execute([
+    $name,
+    $requested_amount,
+    $year,
+    $status
+]);
 
             // บันทึกเสร็จ -> ย้ายกลับหน้า index (หรือ dashboard ที่คุณใช้)
             header("Location: dashboard.php?year=" . urlencode($year));
@@ -116,7 +126,7 @@ body { font-family:'Sarabun',sans-serif; background:#f7f9fc; }
       <label class="form-label">ชื่อรายการงบประมาณ</label>
       <select name="item_name" class="form-select" required>
         <option value="">-- เลือกรายการงบประมาณ --</option>
-        <option value="งบการลงทุน"   <?= $name === 'งบการลงทุน'   ? 'selected' : '' ?>>งบการลงทุน</option>
+        <option value="งบลงทุน"   <?= $name === 'งบลงทุน'   ? 'selected' : '' ?>>งบลงทุน</option>
         <option value="งบดำเนินงาน" <?= $name === 'งบดำเนินงาน' ? 'selected' : '' ?>>งบดำเนินงาน</option>
         <option value="งบรายจ่ายอื่น" <?= $name === 'งบรายจ่ายอื่น' ? 'selected' : '' ?>>งบรายจ่ายอื่น</option>
         <option value="งบบูรณาการ"  <?= $name === 'งบบูรณาการ'  ? 'selected' : '' ?>>งบบูรณาการ</option>

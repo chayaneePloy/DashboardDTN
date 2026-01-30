@@ -27,7 +27,15 @@ if ($selected_year) {
         FROM budget_items bi
         INNER JOIN budget_detail bd ON bi.id = bd.budget_item_id
         WHERE bi.fiscal_year = ?
-        ORDER BY bi.item_name
+         ORDER BY 
+      CASE item_name
+        WHEN 'งบลงทุน'   THEN 1
+        WHEN 'งบบูรณาการ'   THEN 2
+        WHEN 'งบดำเนินงาน'  THEN 3
+        WHEN 'งบรายจ่ายอื่น' THEN 4
+        ELSE 5
+      END,
+      id ASC
     ");
     $stmt->execute([$selected_year]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
