@@ -1,8 +1,6 @@
 <?php
 // ===================== CONFIG/CONNECT =====================
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+include 'db.php';
 // ===================== รับค่าจากฟอร์ม =====================
 $selected_year    = $_GET['year']    ?? '';
 $selected_item    = $_GET['item']    ?? '';
@@ -105,6 +103,7 @@ if ($selected_year && $selected_item) {
             c.contract_id,
             c.contract_number, 
             c.contract_date,   
+            c.contract_ends, 
             c.contractor_name,
             p.phase_id, p.phase_number, p.phase_name, p.amount, 
             p.due_date, p.completion_date, p.status, p.payment_date
@@ -328,20 +327,18 @@ function thai_date($date){
 
     <div class="container my-4">
 
-        <div class="d-flex align-items-center justify-content-between">
-            <?php if ($selected_year && $selected_item): ?>
-            <div class="mb-3 d-flex gap-2">
-                <a class="btn btn-outline-success"
-                    href="create_contract.php?year=<?= urlencode($selected_year) ?>&item=<?= urlencode($selected_item) ?>&return=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
-                    + เพิ่มสัญญา
-                </a>
-                <a class="btn btn-success"
-                    href="create_phase.php?year=<?= urlencode($selected_year) ?>&item=<?= urlencode($selected_item) ?>&return=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
-                    + เพิ่มงวดงาน
-                </a>
-            </div>
-            <?php endif; ?>
-        </div>
+  <div class="mb-3 d-flex gap-2">
+    <a class="btn btn-outline-success"
+        href="create_contract.php?return=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
+        + เพิ่มสัญญา
+    </a>
+
+    <a class="btn btn-success"
+        href="create_phase.php?return=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
+        + เพิ่มงวดงาน
+    </a>
+</div>
+
 
         <!-- ฟอร์มเลือก -->
         <form method="get" class="row g-3 mb-4">
@@ -503,6 +500,7 @@ function thai_date($date){
           $contract_number = $p['contract_number'];
           $contractor_name = $p['contractor_name'];
           $contractDateTH = thai_date($p['contract_date']);
+           $contract_ends = thai_date($p['contract_ends']);
           $requested_amt   = (float)($p['requested_amount'] ?? 0);
 
           echo '<tr class="table-primary">
@@ -513,7 +511,8 @@ function thai_date($date){
                         <span class="fw-normal">
                           
                           เลขสัญญา: '.htmlspecialchars($contract_number).' |
-                          วันที่สัญญา: '.$contractDateTH.' |
+                           วันที่ลงนามสัญญา: '.$contractDateTH.' |
+                           วันที่สิ้นสุดสัญญา: '.$contract_ends.' |
                           ผู้รับจ้าง: '.htmlspecialchars($contractor_name).' |
                           <span class="text-success">งบที่ขอ: '.number_format($requested_amt, 2).'</span>
                         </span>
@@ -546,10 +545,12 @@ function thai_date($date){
                             <tr>
                                 <td class="text-end"><?= htmlspecialchars($phaseLabel) ?></td>
 
-                                <td class="text-end"><?= $p['due_date'] ? date("d/m/Y", strtotime($p['due_date'])) : '-' ?></td>
-                                <td class="text-end"><?= $p['completion_date'] ? date("d/m/Y", strtotime($p['completion_date'])) : '-' ?>
-                                </td>
-                                <td class="text-end"><?= $p['payment_date'] ? date("d/m/Y", strtotime($p['payment_date'])) : '-' ?></td>
+                                <td class="text-end"><?= thai_date($p['due_date']) ?></td>
+
+<td class="text-end"><?= thai_date($p['completion_date']) ?></td>
+
+<td class="text-end"><?= thai_date($p['payment_date']) ?></td>
+
                                 <td class="number"><?= number_format($amount, 2) ?></td>
                                 <td class="text-end"><?= htmlspecialchars((string)$p['status']) ?></td>
                                 <!-- ✅ หมายเหตุ -->

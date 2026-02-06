@@ -1,7 +1,6 @@
 <?php
 // ===================== CONNECT =====================
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+include 'db.php';
 
 // ===================== UTIL =====================
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
@@ -92,7 +91,7 @@ if ($method === 'POST') {
         } elseif ($contract_no === '') {
             $errorMsg = "กรุณากรอก เลขสัญญา";
         } elseif ($contractor === '') {
-            $errorMsg = "กรุณากรอก ชื่อบริษัท";
+            $errorMsg = "กรุณากรอก ผู้รับจ้าง";
         }
 
         // ตรวจเลขสัญญาซ้ำ (ยกเว้น record ตัวเอง)
@@ -113,17 +112,19 @@ if ($method === 'POST') {
         if (!$errorMsg) {
             try {
                  $contract_date = thai_to_mysql_date($_POST['contract_date'] ?? '');
+                 $contract_ends  = thai_to_mysql_date($_POST['contract_ends'] ?? '');
 
 
 $stmt = $pdo->prepare("
     UPDATE contracts
-    SET contract_number = ?, contractor_name = ?, contract_date = ?
+    SET contract_number = ?, contractor_name = ?, contract_date = ?, contract_ends = ?
     WHERE contract_id = ?
 ");
 $stmt->execute([
     $contract_no,
     $contractor,
     $contract_date,
+    $contract_ends,
     $contract_id
 ]);
 
@@ -146,7 +147,7 @@ $stmt->execute([
         } elseif ($contract_no === '') {
             $errorMsg = "กรุณากรอก เลขสัญญา";
         } elseif ($contractor === '') {
-            $errorMsg = "กรุณากรอก ชื่อบริษัท";
+            $errorMsg = "กรุณากรอก ผู้รับจ้าง";
         }
 
         // ตรวจความสัมพันธ์ detail_id อยู่ใต้ปี/งบที่เลือกจริง
@@ -175,18 +176,20 @@ $stmt->execute([
         if (!$errorMsg) {
             try {
                 $contract_date = thai_to_mysql_date($_POST['contract_date'] ?? '');
+                $contract_ends = thai_to_mysql_date($_POST['contract_ends'] ?? '');
 
 
 $stmt = $pdo->prepare("
     INSERT INTO contracts
-    (detail_item_id, contract_number, contractor_name, contract_date)
-    VALUES (?, ?, ?, ?)
+    (detail_item_id, contract_number, contractor_name, contract_date, contract_ends)
+    VALUES (?, ?, ?, ?, ?)
 ");
 $stmt->execute([
     $detail_id,
     $contract_no,
     $contractor,
-    $contract_date ?: null
+    $contract_date ?: null,
+    $contract_ends ?: null
 ]);
 
                 $successMsg = "บันทึกสัญญาเรียบร้อยแล้ว";
@@ -218,7 +221,7 @@ $stmt->execute([
 $contracts = [];
 if ($selected_detail) {
     $stmt = $pdo->prepare("
-    SELECT c.contract_id, c.contract_number, c.contractor_name, c.contract_date
+    SELECT c.contract_id, c.contract_number, c.contractor_name, c.contract_date, c.contract_ends
     FROM contracts c
     JOIN budget_detail bd ON c.detail_item_id = bd.id_detail
     JOIN budget_items bi ON bd.budget_item_id = bi.id
@@ -318,7 +321,10 @@ function thai_to_mysql_date($d){
     <div class="container my-4">
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h3 class="form-section-title">📝 เพิ่มสัญญา </h3>
-          
+           <a class="btn btn-success"
+                    href="create_phase.php?year=<?= urlencode($selected_year) ?>&item=<?= urlencode($selected_item) ?>&return=<?= urlencode($_SERVER['REQUEST_URI']) ?>">
+                    + เพิ่มงวดงาน
+                </a>
         </div>
 
         <?php if ($successMsg): ?>
@@ -351,6 +357,7 @@ function thai_to_mysql_date($d){
     <select class="form-select" name="item" onchange="this.form.submit()"
       <?= $selected_year===''?'disabled':'' ?>>
       <option value="">-- เลือกงบ --</option>
+      
       <?php foreach ($items as $i): ?>
         <option value="<?= h($i['id']) ?>" <?= $i['id']==$selected_item?'selected':'' ?>>
           <?= h($i['item_name']) ?>
@@ -389,17 +396,28 @@ function thai_to_mysql_date($d){
       <input type="hidden" name="detail_id" value="<?= h($selected_detail) ?>">
 
       <div class="col-md-4">
-        <label class="form-label">เลขสัญญา</label>
-        <input type="text" name="contract_number" class="form-control" required>
+        <label class="form-label">เลขที่สัญญา</label>
+        <input type="text" name="contract_number" class="form-control" required >
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">วันที่สัญญา</label>
-        <input name="contract_date" class="form-control">
+        <label class="form-label">วันที่ลงนามสัญญา</label>
+        <input name="contract_date" class="form-control" placeholder="วว/ดด/พศ">
       </div>
 
+        <div class="col-md-4">
+        <label class="form-label">วันที่สิ้นสุดสัญญา</label>
+        <input name="contract_ends" class="form-control" placeholder="วว/ดด/พศ">
+        
+      </div>
+      <div class="text-danger mb-2 text-end">
+  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+  <strong>หมายเหตุ :</strong>
+  โปรดระบุวันที่ในรูปแบบ ตัวเลข 2 หลัก (เช่น 05/01/2568)
+</div>
+
       <div class="col-md-6">
-        <label class="form-label">ชื่อบริษัท</label>
+        <label class="form-label">ผู้รับจ้าง</label>
         <input type="text" name="contractor_name" class="form-control" required>
       </div>
 
@@ -427,8 +445,9 @@ function thai_to_mysql_date($d){
                             <tr>
                                 <th style="width:10%">#</th>
                                 <th style="width:25%">เลขสัญญา</th>
-                                <th>ชื่อบริษัท</th>
-                                <th>วันที่สัญญา</th>
+                                <th>ผู้รับจ้าง</th>
+                                <th>วันที่ลงนามสัญญา</th>
+                                <th>วันที่สิ้นสุดสัญญา</th>
                                 <th style="width:20%">จัดการ</th>
                             </tr>
                         </thead>
@@ -456,14 +475,16 @@ function thai_to_mysql_date($d){
                                             class="form-control form-control-sm">
                                     </td>
                                     <td>
-  <input type="text" name="contract_date"
-       value="<?= h(thai_date($c['contract_date'])) ?>"
-       class="form-control form-control-sm"
-       placeholder="วว/ดด/พศ เช่น 15/01/2568">
-
-
-</td>
-
+                                        <input type="text" name="contract_date"
+                                            value="<?= h(thai_date($c['contract_date'])) ?>"
+                                            class="form-control form-control-sm"
+                                            placeholder="วว/ดด/พศ เช่น 15/01/2568">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="contract_ends"
+                                        value="<?= h(thai_date($c['contract_ends'])) ?>"
+                                     class="form-control form-control-sm">
+                                    </td>
 
                                     <td class="align-middle">
                                         <div class="d-flex gap-1">

@@ -1,7 +1,6 @@
 <?php
 // ================= CONNECT =================
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8","root","");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+include 'db.php';
 
 $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 if (!$years) { $years = [date('Y')]; } // fallback เป็นปีปัจจุบัน (ค.ศ./พ.ศ. แล้วแต่โครงสร้าง)
@@ -55,50 +54,46 @@ $data = [];
 if ($year) {
 
     $sql = "
-        SELECT
-            bi.fiscal_year,
-            bi.item_name,
+    SELECT
+        bi.fiscal_year,
+        bi.item_name,
+        bd.id_detail,
+        bd.detail_name,
+        bd.requested_amount,
+        c.contract_id,
+        c.contract_number,
+        c.contractor_name,
+        c.contract_date,
+        c.contract_ends,
+        p.phase_number,
+        p.phase_name,
+        p.amount AS phase_amount,
+        p.due_date,
+        p.completion_date,
+        p.status
+    FROM budget_items bi
+    JOIN budget_detail bd ON bd.budget_item_id = bi.id
+    LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
+    LEFT JOIN phases p ON p.contract_detail_id = c.contract_id
+    WHERE bi.fiscal_year = ?
+";
 
-            bd.id_detail,
-            bd.detail_name,
-            bd.requested_amount,
+$params = [$year];
 
-            c.contract_id,
-            c.contract_number,
-            c.contractor_name,
-            c.contract_date,
-            c.total_amount,
+if ($budgetItem !== 'all') {
+    $sql .= " AND bi.id = ? ";
+    $params[] = $budgetItem;
+}
 
-            p.phase_number,
-            p.phase_name,
-            p.amount AS phase_amount,
-            p.due_date,
-            p.completion_date,
-            p.status
-
-        FROM budget_items bi
-        JOIN budget_detail bd ON bd.budget_item_id = bi.id
-        LEFT JOIN contracts c ON c.detail_item_id = bd.id_detail
-        LEFT JOIN phases p ON p.contract_detail_id = c.contract_id
-
-        WHERE bi.fiscal_year = ?
-    ";
-
-    $params = [$year];
-
-    if ($budgetItem !== 'all') {
-        $sql .= " AND bi.id = ? ";
-        $params[] = $budgetItem;
-    }
-    if ($detailId !== 'all') {
+if ($detailId !== 'all') {
     $sql .= " AND bd.id_detail = ? ";
     $params[] = $detailId;
 }
 
+$sql .= "
+    ORDER BY bi.item_name, bd.detail_name, c.contract_number, p.phase_number
+";
 
-    $sql .= "
-        ORDER BY bi.item_name, bd.detail_name, c.contract_number, p.phase_number
-    ";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -118,12 +113,7 @@ if ($year) {
         $sql .= " AND bi.id = ? ";
         $params[] = $budgetItem;
     }
-    if ($detailId !== 'all') {
-    $sql .= " AND bd.id_detail = ? ";
-    $params[] = $detailId;
-}
-
-
+    
     $sql .= " ORDER BY bd.detail_name";
 
     $stmt = $pdo->prepare($sql);
@@ -226,6 +216,12 @@ th { background:#f1f1f1; }
                                 รายงานการจ่ายงวดงาน
                             </a>
                         </li>
+                         <li>
+                            <a class="dropdown-item"
+                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- =============================== -->
@@ -237,7 +233,7 @@ th { background:#f1f1f1; }
         </div>
     </div>
 </nav>
-<body class="bg-light">
+
 <div class="container my-4">
 
 <!-- ================= HEADER ================= -->
@@ -358,9 +354,18 @@ th { background:#f1f1f1; }
   <td class="text-end"><?=number_format($r['phase_amount'],2)?></td>
 
    <td class="text-center">
-        <?= $r['status']
-            ? '<span class="badge bg-success">เสร็จสิ้น</span>'
-            : '<span class="badge bg-warning text-dark">ยังไม่เสร็จ</span>' ?>
+        <?php
+$status = trim((string)$r['status']);
+
+if ($status === 'เสร็จสิ้น') {
+    echo '<span class="badge bg-success">เสร็จสิ้น</span>';
+} elseif ($status === 'ยังไม่เสร็จ') {
+    echo '<span class="badge bg-warning text-dark">ยังไม่เสร็จ</span>';
+} else {
+    echo '<span class="badge bg-secondary">รอดำเนินการ</span>';
+}
+?>
+
     </td>
 </tr>
 <?php endforeach ?>

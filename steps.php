@@ -1,7 +1,12 @@
 <?php
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+include 'db.php';
+
+// ปีเริ่มต้นสำหรับช่องกรอก
+$selected_year    = $_GET['year']    ?? '';
+$selected_quarter = $_GET['quarter'] ?? '';
+
+
 
 // --------- helper: ตรวจชื่อคอลัมน์อ้างอิงโครงการใน project_steps (กันสะกดต่าง) ----------
 function detectIdDetailColumn(PDO $pdo): string {
@@ -36,7 +41,7 @@ $budget_item_id = $project_detail['budget_item_id'] ?? null;
 
 // --- ดึงเลขสัญญา และ ผู้รับจ้าง (ถ้ามี) จากตาราง contracts
 $contract_stmt = $pdo->prepare("
-    SELECT contract_number, contractor_name, contract_date, total_amount
+    SELECT contract_number, contractor_name, contract_date, contract_ends
     FROM contracts
     WHERE detail_item_id = :id_detail
     ORDER BY contract_id ASC
@@ -59,7 +64,7 @@ $requested_row = $requested->fetch(PDO::FETCH_ASSOC);
 $contract_number  = $contract['contract_number']    ?? '-';
 $contractor_name  = $contract['contractor_name']    ?? '-';
 $contract_date  = $contract['contract_date']    ?? '-';
-$contract_total   = isset($contract['total_amount']) ? number_format($contract['total_amount'], 2) : '-';
+$contract_ends  = $contract['contract_ends']    ?? '-';
 $requested_amount = isset($requested_row['requested_amount']) ? number_format($requested_row['requested_amount'], 2) : '-';
 
 // ---------------- 9 ขั้นตอนมาตรฐาน ----------------
@@ -105,20 +110,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // ชื่อขั้นตอน fix ตามลำดับ
         $step_name       = getDefaultStepName($step_order, $defaultSteps);
         $step_description= trim($_POST['step_description'] ?? '');
-        $step_date       = $_POST['step_date'] ?? '';
+        $step_date       = $_POST['step_date'] ?? null;
         $sub_steps       = trim($_POST['sub_steps'] ?? '');
         $is_completed    = isset($_POST['is_completed']) ? 1 : 0;
         $existing_doc    = $_POST['existing_document_path'] ?? null;
         $doc             = handleUpload($_FILES['document_file'] ?? null, $existing_doc);
 
         // ถ้าไม่ได้เลือกวันที่ ให้ใช้วันที่วันนี้ (พ.ศ.)
-        if ($step_date === '' || $step_date === null) {
-            $yearCE = (int)date('Y');
-            $month  = (int)date('m');
-            $day    = (int)date('d');
-            $yearTH = $yearCE + 543;
-            $step_date = sprintf('%04d-%02d-%02d', $yearTH, $month, $day);
-        }
+   if ($step_date === '') {
+    $step_date = null;
+}
 
         $sql = "UPDATE project_steps
                    SET step_order      = :step_order,
@@ -161,26 +162,20 @@ $steps = $steps_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ---------------- ถ้ายังไม่มีขั้นตอนเลย -> สร้าง 9 ขั้นตอนมาตรฐาน ----------------
 if (empty($steps) && $id_detail > 0) {
-    // วันที่ปัจจุบันแบบ พ.ศ. YYYY-MM-DD
-    $today    = new DateTime();
-    $yearCE   = (int)$today->format('Y');
-    $month    = (int)$today->format('m');
-    $day      = (int)$today->format('d');
-    $yearTH   = $yearCE + 543;
-    $defaultDate = sprintf('%04d-%02d-%02d', $yearTH, $month, $day);
+  
 
     $insert = $pdo->prepare("
         INSERT INTO project_steps 
             ($idCol, step_order, step_name, step_description, step_date, sub_steps, is_completed, document_path)
         VALUES 
-            (:id_detail, :step_order, :step_name, '', :step_date, '', 0, NULL)
+            (:id_detail, :step_order, :step_name, '', NULL, '', 0, NULL)
     ");
     foreach ($defaultSteps as $order => $name) {
         $insert->execute([
             ':id_detail'  => $id_detail,
             ':step_order' => $order,
-            ':step_name'  => $name,
-            ':step_date'  => $defaultDate
+            ':step_name'  => $name
+          
         ]);
     }
 
@@ -416,7 +411,6 @@ function thai_date_ddmmyyyy($date) {
             <!-- Brand -->
             <a class="navbar-brand fw-bold" href="index.php">
                 📊Dashboard งบประมาณโครงการ
-
             </a>
 
             <!-- Hamburger -->
@@ -427,14 +421,14 @@ function thai_date_ddmmyyyy($date) {
             <!-- Menu -->
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="index.php">
+                         <li class="nav-item">
+                        <a class="nav-link" href="index.php?year=<?= htmlspecialchars($selected_year) ?>&quarter=<?= htmlspecialchars($selected_quarter ?: 1) ?>">
                             <i class="bi bi-house"></i> หน้าหลัก
                         </a>
                     </li>
-
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="index.php?id=<?= $item_id ?>">
+                        <a class="nav-link"
+                            href="index.php?id=<?= $item_id ?>">
                             <i class="bi bi-arrow-left"></i> กลับ
                         </a>
                     </li>
@@ -442,15 +436,12 @@ function thai_date_ddmmyyyy($date) {
             </div>
         </div>
     </nav>
-
     <div class="container my-4">
-
         <!-- Project Overview -->
         <div class="card shadow-lg border-0 mb-4">
             <div class="card-body text-center">
                 <h2 class="fw-bold text-primary text-break"><?= htmlspecialchars($detail_name) ?></h2>
                 <p class="text-muted">ติดตามความก้าวหน้าของโครงการขั้นตอนจัดซื้อจัดจ้าง</p>
-
                 <div class="progress my-3" style="height: 22px;">
                     <div class="progress-bar bg-success fw-bold" role="progressbar" style="width: <?= $percent ?>%;">
                         <?= $percent ?>%
@@ -459,7 +450,6 @@ function thai_date_ddmmyyyy($date) {
                 <small class="text-secondary">ดำเนินการแล้ว <?= $completed ?>/<?= $total ?> ขั้นตอน</small>
             </div>
         </div>
-
         <!-- Current/Next Step -->
         <div class="row mb-4">
             <div class="col-md-12">
@@ -472,7 +462,6 @@ function thai_date_ddmmyyyy($date) {
                 </div>
             </div>
         </div>
-
         <!-- Timeline Header -->
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h4 class="text-secondary mb-0">📌 ขั้นตอนจัดซื้อจัดจ้าง</h4>
@@ -552,11 +541,12 @@ function thai_date_ddmmyyyy($date) {
             <div class="modal fade" id="editStepModal<?= $step['id'] ?>" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
-                        <form method="post" enctype="multipart/form-data">
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="id" value="<?= $step['id'] ?>">
-                            <input type="hidden" name="existing_document_path"
-                                value="<?= htmlspecialchars($step['document_path'] ?? '') ?>">
+                       <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="action" value="update">
+    <input type="hidden" name="id" value="<?= $step['id'] ?>">
+    <input type="hidden" name="step_date" value="<?= htmlspecialchars($step['step_date']) ?>">
+
+                            
 
                             <div class="modal-header bg-warning">
                                 <h5 class="modal-title">
@@ -593,6 +583,14 @@ function thai_date_ddmmyyyy($date) {
                                             </div>
                                         </div>
                                     </div>
+<div class="mb-3">
+    <label class="form-label">วันที่ดำเนินการ</label>
+    <input type="date"
+           name="step_date"
+           class="form-control"
+           value="<?= $step['step_date'] ?: '' ?>">
+    <small class="text-muted">สามารถเว้นว่างได้</small>
+</div>
 
                                     <div class="col-12">
                                         <label class="form-label">รายละเอียด</label>
@@ -658,11 +656,12 @@ function thai_date_ddmmyyyy($date) {
             <div class="card-header bg-green-700 text-white fw-bold">
                 <div>💰 งวดงานของโครงการ </div>
                 <div class="mt-1 small ">
-                    <strong>เลขสัญญา:</strong> <?= htmlspecialchars($contract_number) ?> &nbsp;|&nbsp;
+                    <strong>เลขที่สัญญา:</strong> <?= htmlspecialchars($contract_number) ?> &nbsp;|&nbsp;
                     <strong>ผู้รับจ้าง:</strong> <?= htmlspecialchars($contractor_name) ?> &nbsp;|&nbsp;
-                   <strong>วันที่:</strong><?= $contract_date ? thai_date_ddmmyyyy($contract_date) : '-' ?>&nbsp;|&nbsp;
+                   <strong>วันที่ลงนามสัญญา:</strong>&nbsp;<?= $contract_date ? thai_date_ddmmyyyy($contract_date) : '-' ?>&nbsp;|&nbsp;
+                     <strong>วันที่สิ้นสุดสัญญา:</strong>&nbsp;<?= $contract_ends ? thai_date_ddmmyyyy($contract_ends) : '-' ?>&nbsp;|&nbsp;
 
-                    <strong>งบที่ขอ:</strong> <?= $requested_amount ?> บาท
+                    <strong>วงเงินตามสัญญา:</strong> <?= $requested_amount ?> บาท
                 </div>
             </div>
             <div class="card-body p-0">

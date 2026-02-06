@@ -31,7 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_detail'])) {
     $detail_id        = $_POST['id_detail'];
     $detail_name      = $_POST['detail_name'];
     $budget_received  = $_POST['budget_received'];
-    $requested_amount = $_POST['requested_amount'];
+    $requested_amount = $_POST['requested_amount'] !== ''
+    ? $_POST['requested_amount']
+    : 0;
+
     $description      = $_POST['description'];
 
     $stmt = $pdo->prepare("
@@ -49,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_detail'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_detail'])) {
     $detail_name      = $_POST['detail_name'];
     $budget_received  = $_POST['budget_received'];
-    $requested_amount = $_POST['requested_amount'];
+    $requested_amount= floatval($_POST['requested_amount'] ?? 0);
     $description      = $_POST['description'] ?? '';
 
     $insert = $pdo->prepare("
@@ -179,7 +182,7 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
           </div>
           <div class="col-md-2">
             <label class="form-label">ราคาจ้าง (บาท)</label>
-            <input type="number" step="0.01" name="requested_amount" class="form-control" >
+            <input type="number" step="0.01" name="requested_amount" class="form-control" value="0" >
           </div>
           <div class="col-md-3">
             <label class="form-label">คำอธิบาย (ถ้ามี)</label>
@@ -237,24 +240,27 @@ body{font-family:'Sarabun',sans-serif;background:#f7f9fc;}
                      value="<?= htmlspecialchars($d['description']) ?>">
             </td>
 
-            <td>
-              <a href="?id=<?= $id ?>&delete_detail=<?= $d['id_detail'] ?>"
-                 class="btn btn-danger btn-sm"
-                 onclick="return confirm('ลบรายการย่อย “<?= htmlspecialchars($d['detail_name']) ?>” หรือไม่?')">
-                ลบ
-              </a>
-            </td>
+          
+                                    <td class="align-middle">
+                                        <div class="d-flex gap-1">
+                                            <button type="submit" name="action" value="update"
+                                                class="btn btn-sm btn-primary">
+                                                บันทึก
+                                            </button>
+                                            <button type="submit" name="action" value="delete"
+                                                class="btn btn-sm btn-danger"
+                                                onclick="return confirm('ยืนยันการลบสัญญานี้?');">
+                                                ลบ
+                                            </button>
+                                        </div>
+                                    </td>
           </tr>
         <?php endforeach; endif; ?>
         </tbody>
       </table>
 
-      <!-- ปุ่มบันทึกทั้งหมด -->
-      <div class="text-end p-2">
-        <button type="submit" class="btn btn-success btn-sm">
-          💾 บันทึกทั้งหมด
-        </button>
-      </div>
+
+      
     </div>
   </form>
 

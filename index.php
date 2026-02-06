@@ -15,9 +15,7 @@
  *******************************/
 
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+include 'db.php';
 // ---------------- ปีงบประมาณทั้งหมด (จาก budget_items) ----------------
 $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")->fetchAll(PDO::FETCH_COLUMN);
 if (!$years) { $years = [date('Y')]; } // fallback เป็นปีปัจจุบัน (ค.ศ./พ.ศ. แล้วแต่โครงสร้าง)
@@ -485,6 +483,12 @@ function thai_date($date) {
                                 รายงานการจ่ายงวดงาน
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- =============================== -->
@@ -764,7 +768,7 @@ function thai_date($date) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+  <script>
     function loadDetail(itemId) {
         fetch('load_detail.php?id=' + itemId)
             .then(res => res.text())
@@ -779,6 +783,7 @@ function thai_date($date) {
             });
     }
     </script>
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams(window.location.search);

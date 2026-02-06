@@ -1,10 +1,12 @@
 <?php
-require 'db.php';
-session_start();
+include 'db.php';
+
+
 
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 $id_detail = isset($_GET['id_detail']) ? (int) $_GET['id_detail'] : 0;
+
 
 /**
  * แปลงวันที่ระหว่าง พ.ศ. <-> ค.ศ.

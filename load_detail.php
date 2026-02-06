@@ -6,6 +6,23 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // ---------------- รับพารามิเตอร์ ----------------
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
+
+
+
+$years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_act ORDER BY fiscal_year DESC")
+             ->fetchAll(PDO::FETCH_COLUMN);
+if (!$years) {
+    // ถ้าไม่มีปีในฐานข้อมูล ให้ใช้ปีปัจจุบัน (พ.ศ.)
+    $years = [date('Y') + 543];
+}
+
+
+// -------------------- รับค่าปีงบประมาณ --------------------
+
+// ปีเริ่มต้นสำหรับช่องกรอก
+$selected_year    = $_GET['year']    ?? '';
+$selected_quarter = $_GET['quarter'] ?? '';
+
 // ---------------- ดึงข้อมูล budget_items (หัวข้อหลักประเภทโครงการ) ----------------
 $stmtItem = $pdo->prepare("
     SELECT item_name, requested_amount
@@ -233,7 +250,17 @@ if (!$notFound) {
                                         $detailRemain  = $detailRequested - $detailUsed;
                                         $detailPercent = $detailRequested > 0 ? ($detailUsed / $detailRequested) * 100 : 0.0;
 
-                                        $link = "steps.php?id_detail=" . urlencode($detailId);
+                                        $query = ['id_detail' => $detailId];
+                                        if ($selected_year !== '') {
+                                                $query['year'] = $selected_year;
+                                                }
+
+                                               if ($selected_quarter !== null) {
+                                                    $query['quarter'] = $selected_quarter;
+                                                    }
+
+                                        $link = 'steps.php?' . http_build_query($query);
+
                                     ?>
                             <tr>
                                <td title="<?= htmlspecialchars($detailName) ?>">

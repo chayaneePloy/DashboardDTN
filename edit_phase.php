@@ -1,8 +1,7 @@
 <?php
 // ===================== CONNECT =====================
-session_start();
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+include 'db.php';
 
 // ===================== UTIL =====================
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
@@ -264,7 +263,7 @@ $backUrl = $return_url ?: $stepsUrl ?: 'dashboard_report.php';
                         <input type="text" class="form-control" value="<?= h($phase['detail_name']) ?>" readonly>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">เลขสัญญา</label>
+                        <label class="form-label">เลขที่สัญญา</label>
                         <input type="text" class="form-control" value="<?= h($phase['contract_number']) ?>" readonly>
                     </div>
                     <div class="col-md-8">
@@ -303,23 +302,23 @@ $backUrl = $return_url ?: $stepsUrl ?: 'dashboard_report.php';
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Due Date</label>
+                        <label class="form-label">วันที่เริ่มงวดงาน</label>
                         <input type="date" name="due_date" class="form-control" value="<?= h($phase['due_date']) ?>">
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Completion Date</label>
+                        <label class="form-label">วันที่สิ้นสุดงวดงาน</label>
                         <input type="date" name="completion_date" class="form-control"
                             value="<?= h($phase['completion_date']) ?>">
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Payment Date</label>
+                        <label class="form-label">วันที่จ่ายเงินงวดงาน</label>
                         <input type="date" name="payment_date" class="form-control"
                             value="<?= h($phase['payment_date']) ?>">
                     </div>
                     <div class="col-md-12">
-                        <label class="form-label">หมายเหตุ</label>
+                        <label class="form-label">รายละเอียด</label>
                         <textarea name="phase_name" class="form-control"
                             rows="3"><?= h($phase['phase_name']) ?></textarea>
 

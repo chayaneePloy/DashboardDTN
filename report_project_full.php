@@ -104,6 +104,7 @@ if($year){
             c.contract_number,
             c.contractor_name,
             c.contract_date,
+            c.contract_ends,
             ps.step_order,
             ps.step_name,
             ps.step_description,
@@ -203,6 +204,12 @@ if($year){
                                 รายงานการจ่ายงวดงาน
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- =============================== -->
@@ -296,8 +303,9 @@ if($year){
     <th>โครงการ</th>
     <th>งบได้รับ</th>
     <th>เลขที่สัญญา</th>
-    <th>คู่สัญญา</th>
-    <th>วันที่สัญญา</th>
+    <th>ผู้รับจ้าง</th>
+    <th>วันที่ลงนามสัญญา</th>
+    <th>วันที่สิ้นสุดสัญญา</th>
     <th>ลำดับ</th>
     <th>ขั้นตอน</th>
     <th>รายละเอียด</th>
@@ -314,6 +322,7 @@ if($year){
     <td><?=h($r['contract_number'])?></td>
     <td><?=h($r['contractor_name'])?></td>
     <td class="date-nowrap"><?=thaiDate($r['contract_date'])?></td>
+    <td class="date-nowrap"><?=thaiDate($r['contract_ends'])?></td>
     <td class="text-center"><?=h($r['step_order'])?></td>
     <td><?=h($r['step_name'])?></td>
     <td><?=nl2br(h($r['step_description']))?></td>
