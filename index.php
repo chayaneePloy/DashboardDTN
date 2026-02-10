@@ -155,8 +155,8 @@ $percentUsed    = $totalRequested > 0 ? ($totalUsedAll / $totalRequested) * 100 
 ============================================================================= */
 
 $baseFiscalYearForTable = $selectedYear;
-$quarterFiscalBE = $selectedYear;
-[$qStart, $qEnd] = getCumulativeQuarterRangeForFiscalBE($quarterFiscalBE, $quarter);
+$quarterFiscalBE2 = $_GET['year'] - 543;
+[$qStart, $qEnd] = getCumulativeQuarterRangeForFiscalBE($quarterFiscalBE2, $quarter);
 
 $quarterMonthsMap = [
     1 => 'ต.ค. – ธ.ค.',
@@ -218,15 +218,43 @@ $grand_paid_sum  = array_sum(array_map(fn($r)=> (float)$r['paid_sum'],  $rowsAgg
 $grand_percent_against_year_req = ($yearTotalRequestedDetail > 0)
     ? ($grand_paid_sum / $yearTotalRequestedDetail * 100)
     : 0;
+
 $stmtQuarterOnly = $pdo->prepare("
-    SELECT COALESCE(SUM(p.amount),0) AS paid_quarter_only
-    FROM phases p
-    JOIN contracts c ON c.contract_id = p.contract_detail_id
-    JOIN budget_detail bd ON bd.id_detail = c.detail_item_id
-    JOIN budget_items bi ON bi.id = bd.budget_item_id
-    WHERE bi.fiscal_year = :fy
-      AND p.payment_date BETWEEN :qs AND :qe
+    SELECT COALESCE(SUM(p.amount), 0) AS paid_quarter_only
+FROM phases p
+JOIN contracts c       ON c.contract_id = p.contract_detail_id
+JOIN budget_detail bd  ON bd.id_detail  = c.detail_item_id
+JOIN budget_items bi   ON bi.id          = bd.budget_item_id
+WHERE bi.fiscal_year = :fy
+  AND p.status = 'เสร็จสิ้น'
+  AND p.payment_date BETWEEN :qs AND :qe
+
 ");
+// 🔥 แปลงปีงบ พ.ศ. → ค.ศ.
+$fiscalYearAD = $selectedYear - 543;
+
+// 🔥 คำนวณช่วงไตรมาส (เฉพาะไตรมาสที่เลือก)
+switch ($quarter) {
+    case 1: // ต.ค. - ธ.ค. (ปีก่อน)
+        $qOnlyStart = ($fiscalYearAD - 1) . '-10-01';
+        $qOnlyEnd   = ($fiscalYearAD - 1) . '-12-31';
+        break;
+
+    case 2: // ม.ค. - มี.ค.
+        $qOnlyStart = $fiscalYearAD . '-01-01';
+        $qOnlyEnd   = $fiscalYearAD . '-03-31';
+        break;
+
+    case 3: // เม.ย. - มิ.ย.
+        $qOnlyStart = $fiscalYearAD . '-04-01';
+        $qOnlyEnd   = $fiscalYearAD . '-06-30';
+        break;
+
+    case 4: // ก.ค. - ก.ย.
+        $qOnlyStart = $fiscalYearAD . '-07-01';
+        $qOnlyEnd   = $fiscalYearAD . '-09-30';
+        break;
+}
 
 $stmtQuarterOnly->execute([
     ':fy' => $selectedYear,
@@ -641,7 +669,7 @@ function thai_date($date) {
                 </div>
                 <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
                     <input type="hidden" name="year" value="<?php echo htmlspecialchars($selectedYear); ?>">
-                    <label for="quarter" class="mb-0">ไตรมาส (สะสม):</label>
+                    <label for="quarter" class="mb-0">ไตรมาส:</label>
                     <select id="quarter" name="quarter" class="form-select w-auto" onchange="this.form.submit()">
                         <option value="1" <?php echo $quarter===1?'selected':''; ?>>ไตรมาส 1 (ต.ค.–ธ.ค.)</option>
                         <option value="2" <?php echo $quarter===2?'selected':''; ?>>ไตรมาส 2 (ม.ค.–มี.ค.)</option>
@@ -654,13 +682,13 @@ function thai_date($date) {
             <div class="row text-center mt-3">
                 <div class="col-md-4">
                     <div class="card p-3 bg-purple-400 text-white">
-                        <h6 class="mb-1">ยอดจ่าย (ตามไตรมาส)</h6>
+                        <h6 class="mb-1">ใช้จ่ายแล้ว (ตามไตรมาส)</h6>
                         <div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div>
                     </div>
                 </div>
    <div class="col-md-4">
     <div class="card p-3 bg-purple-500 text-white">
-        <h6 class="mb-1">ยอดสะสม (เฉพาะไตรมาส)</h6>
+        <h6 class="mb-1">ใช้จ่ายแล้ว (เฉพาะไตรมาส  <?= $quarter ?>)</h6>
         <div class="fs-5">
             <?php echo number_format($grand_paid_sum_exact_quarter, 2); ?> บาท
         </div>

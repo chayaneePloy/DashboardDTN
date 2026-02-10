@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+include 'db.php';
 
 /* ===================== FUNCTIONS ===================== */
 function h($s){
@@ -16,13 +16,16 @@ function thai_date($date){
 
 /* ===== ช่วงวันที่ตามไตรมาส (ปีงบ พ.ศ.) ===== */
 function quarterRangeBE($yearBE,$q){
-    return match($q){
-        1 => [($yearBE-1).'-10-01',($yearBE-1).'-12-31'],
-        2 => [$yearBE.'-01-01',$yearBE.'-03-31'],
-        3 => [$yearBE.'-04-01',$yearBE.'-06-30'],
-        default => [$yearBE.'-07-01',$yearBE.'-09-30'],
+    $start = ($yearBE-1).'-10-01';
+    $end = match($q){
+        1 => ($yearBE-1).'-12-31',
+        2 => $yearBE.'-03-31',
+        3 => $yearBE.'-06-30',
+        default => $yearBE.'-09-30',
     };
+    return [$start,$end];
 }
+
 
 /* ===================== ปีงบ ===================== */
 $years = $pdo->query("
@@ -31,11 +34,15 @@ $years = $pdo->query("
     ORDER BY fiscal_year DESC
 ")->fetchAll(PDO::FETCH_COLUMN);
 
-$fiscalYear = $_GET['year'] ?? ($years[0] ?? date('Y')+543);
+$fiscalYear = $_GET['year'] ?? ($years[0] ?? date('Y'));
+//$fiscalYear2 = $_GET['year'] ?? ($years[0] ?? date('Y')-543);
+
+$fiscalYear2 = $_GET['year'] - 543;
 $quarter    = (int)($_GET['quarter'] ?? 1);
 $itemId     = $_GET['item'] ?? '';
 
-[$qs,$qe] = quarterRangeBE($fiscalYear,$quarter);
+[$qs,$qe] = quarterRangeBE($fiscalYear2,$quarter);
+//print_r([$qs, $qe]);
 
 /* ===================== SQL ===================== */
 $sql = "
@@ -44,25 +51,19 @@ SELECT
     bd.detail_name AS project_name,
     c.contract_number,
     p.phase_number,
-    CASE
-        WHEN p.payment_date IS NOT NULL THEN p.payment_date
-        WHEN p.completion_date IS NOT NULL THEN p.completion_date
-        ELSE p.due_date
-    END AS ref_date,
-    p.amount
+    p.payment_date AS ref_date,
+    p.amount,
+	bi.fiscal_year,
+	p.status
 FROM phases p
 JOIN contracts c       ON c.contract_id = p.contract_detail_id
 JOIN budget_detail bd  ON bd.id_detail = c.detail_item_id
 JOIN budget_items bi   ON bi.id = bd.budget_item_id
 WHERE bi.fiscal_year = :fy
-  AND (
-        CASE
-            WHEN p.payment_date IS NOT NULL THEN p.payment_date
-            WHEN p.completion_date IS NOT NULL THEN p.completion_date
-            ELSE p.due_date
-        END
-      ) BETWEEN :qs AND :qe
+  AND p.status = 'เสร็จสิ้น'
+  AND p.payment_date BETWEEN :qs AND :qe
 ";
+
 
 $params = [
     ':fy' => $fiscalYear,
@@ -77,10 +78,18 @@ if($itemId){
 
 $sql .= " ORDER BY bi.item_name, bd.detail_name, p.phase_number ";
 
+
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+///
+//$stmt = $pdo->prepare($sql);
+///$stmt->execute($params);
 
+//$stmt->debugDumpParams();
+
+
+///
 /* ===================== GROUP ===================== */
 $data = [];
 $sumByItem = [];
@@ -97,6 +106,14 @@ if(isset($_GET['export']) && $_GET['export']=='excel'){
     header("Content-Disposition: attachment; filename=quarter_report_{$fiscalYear}_Q{$quarter}.xls");
     echo "\xEF\xBB\xBF"; // รองรับภาษาไทย
 }
+
+$budgetColors = [
+    'งบลงทุน'       => '#e3f2fd', // ฟ้าอ่อน
+    'งบบูรณาการ'   => '#e8f5e9', // เขียวอ่อน
+    'งบดำเนินงาน'  => '#fff8e1', // เหลืองอ่อน
+    'งบรายจ่ายอื่น' => '#fce4ec', // ชมพูอ่อน
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -271,7 +288,6 @@ th{text-align:center;background:#eee}
     <label class="form-label">&nbsp;</label>
     <button class="btn btn-primary fw-bold">แสดง</button>
 </div>
-
 <!-- ปุ่มพิมพ์ / Excel -->
 <div class="col-md-3 text-start">
     <label class="form-label">&nbsp;</label><br>
@@ -287,10 +303,8 @@ th{text-align:center;background:#eee}
        📊 Excel
     </a>
 </div>
-
-
 </form>
-       
+   
 <div class="container my-4">
 
 <?php endif; ?>
@@ -299,15 +313,21 @@ th{text-align:center;background:#eee}
 <div class="alert alert-warning text-center">ไม่พบข้อมูล</div>
 <?php endif; ?>
 
-<?php foreach($data as $item=>$projects): ?>
-<h5><?=$item?></h5>
+<?php foreach($data as $item => $projects): ?>
+<?php
+$bgColor = $budgetColors[$item] ?? '#f5f5f5';
+?>
 
-<?php foreach($projects as $project=>$rows): ?>
+<h5 class="p-2 rounded fw-bold" style="background:<?=$bgColor?>">
+    <?=$item?>
+</h5>
+
+<?php foreach($projects as $project => $rows): ?>
 <b><?=$project?></b>
 
-<div class="table-responsive">
-<table class="table table table-bordered table-striped">
-<thead class="table-dark text-center">
+<div class="table-responsive mb-3">
+<table class="table table-bordered table-striped" style="background:<?=$bgColor?>">
+<thead class="table-dark text-center" style="background:<?=$bgColor?>">
 <tr>
     <th>เลขที่สัญญา</th>
     <th>งวด</th>
@@ -315,8 +335,10 @@ th{text-align:center;background:#eee}
     <th class="text-end">จำนวนเงิน (บาท)</th>
 </tr>
 </thead>
+
 <tbody>
-<?php $sum=0; foreach($rows as $r): $sum+=$r['amount']; ?>
+<?php $sum = 0; ?>
+<?php foreach($rows as $r): $sum += $r['amount']; ?>
 <tr>
     <td><?=$r['contract_number']?></td>
     <td class="text-center"><?=$r['phase_number']?></td>
@@ -325,21 +347,25 @@ th{text-align:center;background:#eee}
 </tr>
 <?php endforeach; ?>
 </tbody>
+
 <tfoot>
-<tr class="table-second10ary fw-bold">
+<tr class="table-secondary fw-bold">
     <td colspan="3" class="text-end">รวม</td>
     <td class="text-end"><?=number_format($sum,2)?></td>
 </tr>
 </tfoot>
 </table>
+</div>
 
 <?php endforeach; ?>
 
 <p class="text-end fw-bold">
-รวม <?=number_format($sumByItem[$item],2)?> บาท
+รวม <?=number_format($sumByItem[$item] ?? 0, 2)?> บาท
 </p>
 <hr>
+
 <?php endforeach; ?>
+
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
