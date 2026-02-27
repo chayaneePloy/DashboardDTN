@@ -122,11 +122,7 @@ if ($year) {
 }
 
 
-// ================= Export Excel =================
-if ($export === 'excel') {
-    header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=report_$year.xls");
-}
+
 
 ?>
 <!DOCTYPE html>
@@ -216,6 +212,12 @@ th { background:#f1f1f1; }
                                 รายงานการจ่ายงวดงาน
                             </a>
                         </li>
+                           <li>
+                            <a class="dropdown-item"
+                               href="report_all.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน
+                            </a>
+                        </li>
                          <li>
                             <a class="dropdown-item"
                                href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
@@ -295,11 +297,9 @@ th { background:#f1f1f1; }
     <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
       🖨️ พิมพ์
     </button>
-    <a href="?year=<?=$year?>&budget_item=<?=$budgetItem?>&detail_id=<?=$detailId?>&export=excel"
-   class="btn btn-success">
-
-     📥 Excel
-    </a>
+     <button type="button" onclick="exportExcel()" class="btn btn-success">
+            📥 Excel
+        </button>
   </div>
   <?php endif ?>
 
@@ -309,7 +309,7 @@ th { background:#f1f1f1; }
 <!-- ================= TABLE ================= -->
 <?php if($data): ?>
 <div class="table-responsive">
-<table class="table table table-bordered table-striped">
+<table class="table table table-bordered table-striped"id="reportTable">
 <thead class="text-center table-dark">
 <tr >
   <th>ประเภท</th>
@@ -387,14 +387,14 @@ if ($status === 'เสร็จสิ้น') {
 
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const tooltipTriggerList = [].slice.call(
-    document.querySelectorAll('[data-bs-toggle="tooltip"]')
-  );
-  tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-  });
-});
+function exportExcel(){
+    let table = document.getElementById("reportTable").outerHTML;
+    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'report_<?=h($year)?>.xls';
+    a.click();
+}
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

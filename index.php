@@ -155,7 +155,9 @@ $percentUsed    = $totalRequested > 0 ? ($totalUsedAll / $totalRequested) * 100 
 ============================================================================= */
 
 $baseFiscalYearForTable = $selectedYear;
-$quarterFiscalBE2 = $_GET['year'] - 543;
+
+
+$quarterFiscalBE2 = $selectedYear - 543;
 [$qStart, $qEnd] = getCumulativeQuarterRangeForFiscalBE($quarterFiscalBE2, $quarter);
 
 $quarterMonthsMap = [
@@ -509,6 +511,12 @@ function thai_date($date) {
                             <a class="dropdown-item"
                                href="report.php?year=<?= htmlspecialchars($selectedYear) ?>">
                                 รายงานการจ่ายงวดงาน
+                            </a>
+                        </li>
+                         <li>
+                            <a class="dropdown-item"
+                               href="report_all.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน
                             </a>
                         </li>
                         <li>

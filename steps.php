@@ -422,7 +422,7 @@ function thai_date_ddmmyyyy($date) {
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                          <li class="nav-item">
-                        <a class="nav-link" href="index.php?year=<?= htmlspecialchars($selected_year) ?>&quarter=<?= htmlspecialchars($selected_quarter ?: 1) ?>">
+                        <a class="nav-link" href="index.php">
                             <i class="bi bi-house"></i> หน้าหลัก
                         </a>
                     </li>

@@ -100,12 +100,7 @@ foreach($rows as $r){
         ($sumByItem[$r['item_name']] ?? 0) + $r['amount'];
 }
 
-/* ===================== EXPORT EXCEL (HTML) ===================== */
-if(isset($_GET['export']) && $_GET['export']=='excel'){
-    header("Content-Type: application/vnd.ms-excel; charset=utf-8");
-    header("Content-Disposition: attachment; filename=quarter_report_{$fiscalYear}_Q{$quarter}.xls");
-    echo "\xEF\xBB\xBF"; // รองรับภาษาไทย
-}
+
 
 $budgetColors = [
     'งบลงทุน'       => '#e3f2fd', // ฟ้าอ่อน
@@ -208,6 +203,12 @@ th{text-align:center;background:#eee}
                                 รายงานการจ่ายงวดงาน
                             </a>
                         </li>
+                           <li>
+                            <a class="dropdown-item"
+                               href="report_all.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน
+                            </a>
+                        </li>
                           <li>
                             <a class="dropdown-item"
                                href="quarter_projects.php?year=<?= htmlspecialchars($fiscalYear) ?>">
@@ -228,7 +229,7 @@ th{text-align:center;background:#eee}
 <div class="container my-4">
 
 <!-- ================= HEADER ================= -->
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3" >
   <h3 class="fw-bold text-primary">
     📊 รายงานผลการเบิกจ่ายงบประมาณไตรมาส <?=$quarter?> ปีงบประมาณ <?=$fiscalYear?>
   </h3>
@@ -298,10 +299,9 @@ th{text-align:center;background:#eee}
        🖨 พิมพ์
     </a>
 
-    <a href="?<?=http_build_query($_GET+['export'=>'excel'])?>"
-       class="btn btn-success">
-       📊 Excel
-    </a>
+  <button type="button" onclick="exportExcel()" class="btn btn-success">
+            📥 Excel
+        </button>
 </div>
 </form>
    
@@ -312,6 +312,10 @@ th{text-align:center;background:#eee}
 <?php if(!$data): ?>
 <div class="alert alert-warning text-center">ไม่พบข้อมูล</div>
 <?php endif; ?>
+<div id="reportTable">
+    
+     <h3>📊 ไตรมาส <?=$quarter?> ปีงบประมาณ <?=$fiscalYear?>
+  </h3>
 
 <?php foreach($data as $item => $projects): ?>
 <?php
@@ -326,7 +330,7 @@ $bgColor = $budgetColors[$item] ?? '#f5f5f5';
 <b><?=$project?></b>
 
 <div class="table-responsive mb-3">
-<table class="table table-bordered table-striped" style="background:<?=$bgColor?>">
+<table class="table table-bordered table-striped" style="background:<?=$bgColor?>" >
 <thead class="table-dark text-center" style="background:<?=$bgColor?>">
 <tr>
     <th>เลขที่สัญญา</th>
@@ -346,6 +350,7 @@ $bgColor = $budgetColors[$item] ?? '#f5f5f5';
     <td class="text-end"><?=number_format($r['amount'],2)?></td>
 </tr>
 <?php endforeach; ?>
+</div>
 </tbody>
 
 <tfoot>
@@ -367,6 +372,16 @@ $bgColor = $budgetColors[$item] ?? '#f5f5f5';
 <?php endforeach; ?>
 
 
+<script>
+function exportExcel(){
+    let table = document.getElementById("reportTable").outerHTML;
+    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'report_<?=h($fiscalYear)?>_Q<?=$quarter?>.xls';
+    a.click();
+}
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

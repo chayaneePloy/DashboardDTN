@@ -176,6 +176,7 @@ if($year){
                         เพิ่มงบตามวงเงินสัญญา
                     </a>
                 </li>
+                
 
                 <li class="nav-item">
                     <a class="nav-link fs-5 text-white px-3"
@@ -202,6 +203,12 @@ if($year){
                             <a class="dropdown-item"
                                href="report.php?year=<?= htmlspecialchars($selectedYear) ?>">
                                 รายงานการจ่ายงวดงาน
+                            </a>
+                        </li>
+                           <li>
+                            <a class="dropdown-item"
+                               href="report_all.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน
                             </a>
                         </li>
                         <li>
@@ -343,7 +350,8 @@ if($year){
 
 <script>
 function exportExcel(){
-    let table = document.getElementById("reportTable").outerHTML;
+    let table = document.getElementById("
+    ").outerHTML;
     let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table);
     let a = document.createElement('a');
     a.href = url;
