@@ -1,8 +1,38 @@
 <?php
+session_start(); // ✅ ต้องมี
 // ===================== CONNECT =====================
 
 include 'db.php';
 
+function toThaiDisplay($dateStr){
+    if (!$dateStr) return '';
+
+    $parts = explode('-', $dateStr);
+    if (count($parts) !== 3) return '';
+
+    $y = (int)$parts[0] + 543; // 🔥 แปลงเป็น พ.ศ.
+    $m = (int)$parts[1];
+    $d = (int)$parts[2];
+
+    return sprintf('%02d/%02d/%04d', $d, $m, $y);
+}
+function toDBDate($dateStr){
+    if (!$dateStr) return null;
+
+    $parts = explode('/', $dateStr);
+    if (count($parts) !== 3) return null;
+
+    $d = (int)$parts[0];
+    $m = (int)$parts[1];
+    $y = (int)$parts[2];
+
+    // 🔥 ถ้าเป็น พ.ศ. → แปลงเป็น ค.ศ.
+    if ($y > 2400) {
+        $y -= 543;
+    }
+
+    return sprintf('%04d-%02d-%02d', $y, $m, $d);
+}
 // ===================== UTIL =====================
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 $allowedStatus = ['รอดำเนินการ','อยู่ระหว่างดำเนินการ','เสร็จสิ้น','ยกเลิก'];
@@ -59,9 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phase_number    = $_POST['phase_number'] ?? '';
         $phase_name      = trim($_POST['phase_name'] ?? '');
         $amountInput     = str_replace([',',' '], '', $_POST['amount'] ?? '0');
-        $due_date        = $_POST['due_date'] ?: null;
-        $completion_date = $_POST['completion_date'] ?: null;
-        $payment_date    = $_POST['payment_date'] ?: null;
+        $due_date        = toDBDate($_POST['due_date'] ?? '');
+        $completion_date = toDBDate($_POST['completion_date'] ?? '');
+        $payment_date    = toDBDate($_POST['payment_date'] ?? '');
         $status          = $_POST['status'] ?? $allowedStatus[0];
 
         $phase_number = (int)$phase_number;
@@ -303,19 +333,20 @@ $backUrl = $return_url ?: $stepsUrl ?: 'dashboard_report.php';
 
                     <div class="col-md-4">
                         <label class="form-label">วันที่เริ่มงวดงาน</label>
-                        <input type="date" name="due_date" class="form-control" value="<?= h($phase['due_date']) ?>">
+                        <input type="text" name="due_date" class="form-control"
+value="<?= h(toThaiDisplay($phase['due_date'])) ?>">
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">วันที่สิ้นสุดงวดงาน</label>
-                        <input type="date" name="completion_date" class="form-control"
-                            value="<?= h($phase['completion_date']) ?>">
+                        <input type="text" name="completion_date" class="form-control"
+value="<?= h(toThaiDisplay($phase['completion_date'])) ?>">
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">วันที่จ่ายเงินงวดงาน</label>
-                        <input type="date" name="payment_date" class="form-control"
-                            value="<?= h($phase['payment_date']) ?>">
+                        <input type="text" name="payment_date" class="form-control"
+value="<?= h(toThaiDisplay($phase['payment_date'])) ?>">
                     </div>
                     <div class="col-md-12">
                         <label class="form-label">รายละเอียด</label>
@@ -400,9 +431,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 <?php endif; ?>
 
-
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

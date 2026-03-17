@@ -1,8 +1,6 @@
 <?php
 // ===================== CONNECT =====================
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+include 'db.php';
 // ===================== FUNCTION =====================
 function h($str){
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');

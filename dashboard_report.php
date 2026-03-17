@@ -396,7 +396,7 @@ function thai_date($date){
         <?php if (!empty($phases)): ?>
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-success text-white">
-                สรุปต่อโครงการ (งบที่ขอ / จ่ายแล้ว / คงเหลือ)
+                สรุปต่อโครงการ (วงเงินตามสัญญา / จ่ายแล้ว / คงเหลือ)
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -404,7 +404,7 @@ function thai_date($date){
                         <thead class="table-light">
                             <tr>
                                 <th>โครงการ</th>
-                                <th class="text-end">งบที่ขอ (บาท)</th>
+                                <th class="text-end">วงเงินตามสัญญา (บาท)</th>
                                 <th class="text-end">จ่ายแล้ว (บาท)</th>
                                 <th class="text-end">คงเหลือ (บาท)</th>
                                 <th class="text-end">จ่ายแล้ว (%)</th>
@@ -465,7 +465,7 @@ function thai_date($date){
                         <thead class="table-light sticky-head text-center">
                             <tr>
                                 <th>งวด/ชื่อ</th>
-                                <th>วันครบกำหนด</th>
+                                <th>วันที่เริ่ม</th>
                                 <th>วันที่เสร็จสิ้น</th>
                                 <th>วันที่จ่าย</th>
                                 <th>จำนวนเงิน (บาท)</th>
@@ -514,7 +514,7 @@ function thai_date($date){
                            วันที่ลงนามสัญญา: '.$contractDateTH.' |
                            วันที่สิ้นสุดสัญญา: '.$contract_ends.' |
                           ผู้รับจ้าง: '.htmlspecialchars($contractor_name).' |
-                          <span class="text-success">งบที่ขอ: '.number_format($requested_amt, 2).'</span>
+                          <span class="text-success">วงเงินตามสัญญา: '.number_format($requested_amt, 2).'</span>
                         </span>
                       </div>
                     </div>
