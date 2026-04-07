@@ -144,8 +144,8 @@ if($year){
                         </li>
                         <li>
                             <a class="dropdown-item"
-                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
-                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                               href="report_landscape.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานภาพรวมงบประมาณตามไตรมาส
                             </a>
                         </li>
                     </ul>
@@ -250,22 +250,37 @@ foreach($details as $d):
 
 <!-- 1) ขั้นตอนจัดซื้อจัดจ้าง -->
 <?php
-$stmt = $pdo->prepare("SELECT * FROM project_steps WHERE id_budget_detail=? ORDER BY step_date");
+$stmt = $pdo->prepare("SELECT * FROM project_steps 
+WHERE id_budget_detail=? ORDER BY step_date");
 $stmt->execute([$p['id_detail']]);
 $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <h6 class="mt-3 fw-bold">1) ขั้นตอนจัดซื้อจัดจ้าง</h6>
 <table class="table table-bordered">
-<tr class="table-light">
+     <colgroup>
+        <col style="width: 10%;">
+        <col style="width: 30%;">
+        <col style="width: 15%;">
+        <col style="width: 45%;">
+    </colgroup>
+<tr class="table-light center">
 <th>ลำดับ</th>
 <th>รายการ</th>
 <th>วันที่</th>
+<th>รายละเอียด</th>
 </tr>
-<?php foreach($steps as $i=>$s): ?>
+<?php 
+$stepNo = 1;
+foreach($steps as $s): 
+    if(empty($s['step_date']) || $s['step_date'] == '0000-00-00' || $s['step_date'] == '0000-00-00 00:00:00') {
+        continue;
+    }
+?>
 <tr>
-<td><?= $i+1 ?></td>
+<td><?= $stepNo++ ?></td>
 <td><?=h($s['step_name'])?></td>
 <td><?=thaiDate($s['step_date'])?></td>
+ <td><?=nl2br(h($s['step_description']))?></td>
 </tr>
 <?php endforeach ?>
 </table>
@@ -309,13 +324,22 @@ $phases = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <h6 class="mt-3 fw-bold">3) งวดงาน</h6>
 <table class="table table-bordered">
 <tr class="table-light">
+        <colgroup>
+        <col style="width: 8%;">   <!-- งวด -->
+        <col style="width: 14%;">  <!-- วันที่เริ่ม -->
+        <col style="width: 14%;">  <!-- วันที่สิ้นสุด -->
+        <col style="width: 16%;">  <!-- จำนวนเงิน -->
+        <col style="width: 16%;">  <!-- ยอดคงเหลือ -->
+        <col style="width: 12%;">  <!-- สถานะ -->
+        <col style="width: 20%;">  <!-- รายละเอียด -->
+    </colgroup>
 <th>งวด</th>
-<th>รายละเอียด</th>
 <th>วันที่เริ่ม</th>
 <th>วันที่สิ้นสุด</th>
 <th class="text-end">จำนวนเงิน</th>
 <th class="text-end">ยอดคงเหลือ</th>
 <th>สถานะ</th>
+<th>รายละเอียด</th>
 </tr>
 
 <?php 
@@ -333,12 +357,12 @@ if($ph['status'] == 'เสร็จสิ้น'){
 ?>
 <tr>
 <td><?=h($ph['phase_number'])?></td>
-<td><?=h($ph['phase_name'])?></td>
 <td><?=thaiDate($ph['due_date'])?></td>
 <td><?=thaiDate($ph['completion_date'])?></td>
 <td class="text-end"><?=number_format($ph['amount'],2)?></td>
 <td class="text-end"><?=$remaining?></td>
 <td><?=h($ph['status'])?></td>
+<td><?=h($ph['phase_name'])?></td>
 </tr>
 <?php endforeach ?>
 </table>

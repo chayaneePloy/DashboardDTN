@@ -16,6 +16,7 @@ $years = $pdo->query("SELECT DISTINCT fiscal_year FROM budget_items ORDER BY fis
 $fiscalYear = $_GET['year'] ?? ($years[0] ?? date('Y'));
 $fy = $fiscalYear - 543;
 
+
 /* ================= ช่วงสะสม ================= */
 $rangeAll = [
     1 => [($fy-1).'-10-01', ($fy-1).'-12-31'],
@@ -62,7 +63,20 @@ for($q=1;$q<=4;$q++){
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>รายงานสะสมไตรมาส</title>
+<title>รายงานภาพรวมสะสมไตรมาส</title>
+   
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="icon" type="image/png" href="assets/logoio.ico">
+    <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -99,11 +113,90 @@ for($q=1;$q<=4;$q++){
 </head>
 
 <body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="index.php">
+            <img src="assets/logo2.png" alt="Dashboard งบประมาณ" style="height:40px;">
+        </a>
 
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#mainNavbar" aria-controls="mainNavbar"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+                <li class="nav-item">
+                    <a class="nav-link active fs-5 text-white px-3"
+                       href="add_budget_act.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                        เพิ่มงบตาม พ.ร.บ.
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="dashboard.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                        เพิ่มงบตามวงเงินสัญญา
+                    </a>
+                </li>
+                
+
+                <li class="nav-item">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="dashboard_report.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                        เพิ่มการจ่ายงวดงาน
+                    </a>
+                </li>
+
+                <!-- ===== เมนูรายงาน (Dropdown) ===== -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link fs-5 text-white px-3"
+                       href="#" id="reportDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        รายงาน
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="reportDropdown">
+                        <li>
+                            <a class="dropdown-item"
+                               href="report_project_full.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                                รายงานจัดซื้อจัดจ้าง
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="report.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                                รายงานการจ่ายงวดงาน
+                            </a>
+                        </li>
+                           <li>
+                            <a class="dropdown-item"
+                               href="report_all.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                                รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item"
+                               href="report_landscape.php?year=<?= htmlspecialchars($fiscalYear) ?>">
+                                รายงานภาพรวมงบประมาณตามไตรมาส
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <!-- =============================== -->
+
+            </ul>
+             <span class="ms-auto text-white fs-5 fw-semibold d-none d-lg-block">
+        กรมเจรจาการค้าระหว่างประเทศ
+    </span>
+        </div>
+    </div>
+</nav>
 <div class="container-fluid my-4">
 
 <h3 class="text-center text-primary fw-bold mb-3">
-📊 รายงานสะสมไตรมาส ปี <?=$fiscalYear?>
+📊 รายงานไตรมาส ปี <?=$fiscalYear?>
 </h3>
 
 <!-- 🔥 filter -->
@@ -119,7 +212,7 @@ for($q=1;$q<=4;$q++){
 
 <div class="col-md-6">
 <button type="button" onclick="printReport()" class="btn btn-secondary">
-🖨 PDF
+🖨 พิมพ์
 </button>
 
 <button type="button" onclick="exportExcel()" class="btn btn-success">
@@ -263,6 +356,7 @@ function getQ(q){
     return el ? el.innerHTML : "ไม่มีข้อมูล";
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

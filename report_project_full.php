@@ -211,8 +211,8 @@ if($year){
                         </li>
                         <li>
                             <a class="dropdown-item"
-                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
-                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                               href="report_landscape.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                                รายงานภาพรวมงบประมาณตามไตรมาส
                             </a>
                         </li>
                     </ul>
@@ -348,8 +348,7 @@ if($year){
 
 <script>
 function exportExcel(){
-    let table = document.getElementById("
-    ").outerHTML;
+    let table = document.getElementById("reportTable").outerHTML;
     let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table);
     let a = document.createElement('a');
     a.href = url;

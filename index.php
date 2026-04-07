@@ -521,8 +521,8 @@ function thai_date($date) {
                         </li>
                         <li>
                             <a class="dropdown-item"
-                               href="quarter_projects.php?year=<?= htmlspecialchars($selectedYear) ?>">
-                                รายงานเบิกจ่ายงบประมาณตามไตรมาส
+                               href="report_landscape.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                               รายงานภาพรวมงบประมาณตามไตรมาส
                             </a>
                         </li>
                     </ul>

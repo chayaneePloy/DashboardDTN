@@ -1,4 +1,5 @@
 <?php
+session_start();
 include 'db.php';
 
 
@@ -41,15 +42,39 @@ function display_thai_date($iso) {
 // ------------------ เพิ่ม ------------------
 if (isset($_POST['add'])) {
     $iso_date = normalize_step_date($_POST['step_date'] ?? '');
+
     $stmt = $pdo->prepare("
-        INSERT INTO project_steps (id_budget_detail, step_name, step_order, step_date, is_completed)
-        VALUES (:id_detail, :step_name, :step_order, :step_date, 0)
+        INSERT INTO project_steps (
+            id_budget_detail,
+            step_name,
+            step_order,
+            step_date,
+            step_description,
+            sub_steps,
+            is_completed,
+            document_path
+        )
+        VALUES (
+            :id_detail,
+            :step_name,
+            :step_order,
+            :step_date,
+            :step_description,
+            :sub_steps,
+            :is_completed,
+            :document_path
+        )
     ");
+
     $stmt->execute([
-        ':id_detail' => $id_detail,
-        ':step_name' => $_POST['step_name'],
-        ':step_order' => (int)$_POST['step_order'],
-        ':step_date' => $iso_date
+        ':id_detail'         => $id_detail,
+        ':step_name'         => trim($_POST['step_name']),
+        ':step_order'        => (int)$_POST['step_order'],
+        ':step_date'         => $iso_date,
+        ':step_description'  => '',
+        ':sub_steps'         => '',
+        ':is_completed'      => 0,
+        ':document_path'     => null
     ]);
 
     $_SESSION['flash_success'] = "เพิ่มขั้นตอนใหม่เรียบร้อยแล้ว!";
