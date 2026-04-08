@@ -267,9 +267,48 @@ $stmtQuarterOnly->execute([
 $grand_paid_sum_exact_quarter = (float)$stmtQuarterOnly->fetchColumn();
 
 // งบตาม พ.ร.บ.
-$stmtAct = $pdo->prepare("SELECT COALESCE(SUM(budget_act_amount),0) FROM budget_act WHERE fiscal_year = ?");
+// งบตาม พ.ร.บ. + เป้าหมายไตรมาส
+$stmtAct = $pdo->prepare("
+    SELECT 
+        COALESCE(budget_act_amount,0) AS budget_act_amount,
+        COALESCE(q1_percent,0) AS q1_percent,
+        COALESCE(q2_percent,0) AS q2_percent,
+        COALESCE(q3_percent,0) AS q3_percent,
+        COALESCE(q4_percent,0) AS q4_percent
+    FROM budget_act
+    WHERE fiscal_year = ?
+    LIMIT 1
+");
 $stmtAct->execute([$selectedYear]);
-$totalActAmount = (float)$stmtAct->fetchColumn();
+$actRow = $stmtAct->fetch(PDO::FETCH_ASSOC);
+
+$totalActAmount = (float)($actRow['budget_act_amount'] ?? 0);
+
+$q1Percent = (float)($actRow['q1_percent'] ?? 0);
+$q2Percent = (float)($actRow['q2_percent'] ?? 0);
+$q3Percent = (float)($actRow['q3_percent'] ?? 0);
+$q4Percent = (float)($actRow['q4_percent'] ?? 0);
+
+// เป้าหมายไตรมาสที่เลือก
+$quarterTargetMap = [
+    1 => $q1Percent,
+    2 => $q2Percent,
+    3 => $q3Percent,
+    4 => $q4Percent,
+];
+
+$currentQuarterTarget = $quarterTargetMap[$quarter] ?? 0;
+
+// เป้าหมายคิดเป็น "จำนวนเงิน" ตามงบ พ.ร.บ.
+$currentQuarterTargetAmount = ($totalActAmount * $currentQuarterTarget) / 100;
+
+// % ใช้จ่ายจริงเทียบงบ พ.ร.บ.
+$actualPercentAgainstAct = $totalActAmount > 0
+    ? ($grand_paid_sum / $totalActAmount) * 100
+    : 0;
+
+// ส่วนต่างระหว่างเป้าหมายกับผลจริง
+$percentDiff = $actualPercentAgainstAct - $currentQuarterTarget;
 
 // งบตามโครงการ (จาก budget_detail ทั้งปี)
 $stmtReqDetail = $pdo->prepare("
@@ -475,7 +514,7 @@ function thai_date($date) {
                 <li class="nav-item">
                     <a class="nav-link active fs-5 text-white px-3"
                        href="add_budget_act.php?year=<?= htmlspecialchars($selectedYear) ?>">
-                        เพิ่มงบตาม พ.ร.บ.
+                        เพิ่มงบตาม พ.ร.บ.+เป้าหมายไตรมาส
                     </a>
                 </li>
 
@@ -663,7 +702,25 @@ function thai_date($date) {
                 </table>
             </div>
         </div>
+<?php
+// เปอร์เซ็นต์เป้าหมายของไตรมาสที่เลือก
+$selectedQuarterPercent = 0;
 
+switch ($quarter) {
+    case 1:
+        $selectedQuarterPercent = (float)$q1Percent;
+        break;
+    case 2:
+        $selectedQuarterPercent = (float)$q2Percent;
+        break;
+    case 3:
+        $selectedQuarterPercent = (float)$q3Percent;
+        break;
+    case 4:
+        $selectedQuarterPercent = (float)$q4Percent;
+        break;
+}
+?>
         <!-- บล็อกไตรมาส -->
         <div class="card p-3 mb-4">
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -675,6 +732,7 @@ function thai_date($date) {
 
                     </div>
                 </div>
+
                 <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
                     <input type="hidden" name="year" value="<?php echo htmlspecialchars($selectedYear); ?>">
                     <label for="quarter" class="mb-0">ไตรมาส:</label>
@@ -687,29 +745,39 @@ function thai_date($date) {
                 </form>
             </div>
 
-            <div class="row text-center mt-3">
-                <div class="col-md-4">
-                    <div class="card p-3 bg-purple-400 text-white">
-                        <h6 class="mb-1">ใช้จ่ายแล้ว (ตามไตรมาส)</h6>
-                        <div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div>
-                    </div>
-                </div>
-   <div class="col-md-4">
-    <div class="card p-3 bg-purple-500 text-white">
-        <h6 class="mb-1">ใช้จ่ายแล้ว (เฉพาะไตรมาส  <?= $quarter ?>)</h6>
-        <div class="fs-5">
-            <?php echo number_format($grand_paid_sum_exact_quarter, 2); ?> บาท
+<div class="row text-center mt-3 g-3">
+   
+    <div class="col-md-3">
+        <div class="card p-3 bg-purple-400 text-white h-100">
+            <h6 class="mb-1">ใช้จ่ายแล้ว (สะสม)</h6>
+            <div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div>
         </div>
     </div>
-</div>
 
-                <div class="col-md-4">
-                    <div class="card p-3 bg-purple-700 text-white">
-                        <h6 class="mb-1">% จ่ายแล้ว</h6>
-                        <div class="fs-5"><?php echo number_format($grand_percent_against_year_req, 2); ?>%</div>
-                    </div>
-                </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-purple-500 text-white h-100">
+            <h6 class="mb-1">ใช้จ่ายแล้ว (เฉพาะไตรมาส <?= $quarter ?>)</h6>
+            <div class="fs-5"><?php echo number_format($grand_paid_sum_exact_quarter, 2); ?> บาท</div>
+        </div>
+    </div>
+       <div class="col-md-3">
+        <div class="card p-3 bg-purple-700 text-white h-100">
+            <h6 class="mb-1">เป้าหมายไตรมาส <?= $quarter ?></h6>
+            <div class="fs-4 fw-bold">
+                <?= number_format($selectedQuarterPercent, 2) ?>%
             </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 bg-purple-800 text-white h-100">
+            <h6 class="mb-1">% จ่ายแล้ว</h6>
+            <div class="fs-5"><?php echo number_format($grand_percent_against_year_req, 2); ?>%</div>
+        </div>
+    </div>
+  
+
+</div>
 
             <div class="table-responsive">
                 <table class="table table-bordered table-striped mt-3">

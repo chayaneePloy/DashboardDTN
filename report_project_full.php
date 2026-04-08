@@ -164,7 +164,7 @@ if($year){
                 <li class="nav-item">
                     <a class="nav-link active fs-5 text-white px-3"
                        href="add_budget_act.php?year=<?= htmlspecialchars($selectedYear) ?>">
-                        เพิ่มงบตาม พ.ร.บ.
+                        เพิ่มงบตาม พ.ร.บ.+เป้าหมายไตรมาส
                     </a>
                 </li>
 
