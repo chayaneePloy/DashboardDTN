@@ -1,6 +1,10 @@
 <?php
 // ===================== CONFIG/CONNECT =====================
 include 'db.php';
+function h($s){
+    return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
+
 // ===================== รับค่าจากฟอร์ม =====================
 $selected_year    = $_GET['year']    ?? '';
 $selected_item    = $_GET['item']    ?? '';
@@ -106,7 +110,7 @@ if ($selected_year && $selected_item) {
             c.contract_ends, 
             c.contractor_name,
             p.phase_id, p.phase_number, p.phase_name, p.amount, 
-            p.due_date, p.completion_date, p.status, p.payment_date
+            p.due_date, p.completion_date, p.status, p.payment_date, p.overlap_type 
         FROM phases p
         JOIN contracts c      ON p.contract_detail_id = c.contract_id
         JOIN budget_detail bd ON c.detail_item_id     = bd.id_detail
@@ -468,6 +472,7 @@ function thai_date($date){
                                 <th>วันที่เริ่ม</th>
                                 <th>วันที่เสร็จสิ้น</th>
                                 <th>วันที่จ่าย</th>
+                                 <th>งบกันเหลื่อม </th>
                                 <th>จำนวนเงิน (บาท)</th>
                                 <th>สถานะ</th>
                                 <th>การดำเนินการ</th>
@@ -484,7 +489,7 @@ function thai_date($date){
       if ($currentProject !== $p['detail_name']) {
           if ($currentProject !== null) {
               echo '<tr class="table-secondary fw-semibold">
-                      <td colspan="8">
+                      <td colspan="9">
                         <div class="d-flex justify-content-between">
                           <span>รวมโครงการ</span>
                           <span class="number">'.number_format($projectSubtotal, 2).'</span>
@@ -504,7 +509,7 @@ function thai_date($date){
           $requested_amt   = (float)($p['requested_amount'] ?? 0);
 
           echo '<tr class="table-primary">
-                  <td colspan="8" class="fw-bold">
+                  <td colspan="9" class="fw-bold">
                     <div class="d-flex justify-content-between align-items-start">
                       <div>
                         โครงการ: '.htmlspecialchars($currentProject).'<br>
@@ -550,7 +555,9 @@ function thai_date($date){
 <td class="text-end"><?= thai_date($p['completion_date']) ?></td>
 
 <td class="text-end"><?= thai_date($p['payment_date']) ?></td>
-
+<td class="text-end">
+    <?= isset($p['overlap_type']) ? h($p['overlap_type']) : 'ไม่มีคอลัมน์' ?>
+</td>
                                 <td class="number"><?= number_format($amount, 2) ?></td>
                                 <td class="text-end"><?= htmlspecialchars((string)$p['status']) ?></td>
                                 <!-- ✅ หมายเหตุ -->
@@ -563,7 +570,7 @@ function thai_date($date){
 
                             <?php if ($currentProject !== null): ?>
                             <tr class="table-secondary fw-semibold">
-                                <td colspan="8">
+                                <td colspan="9">
                                     <div class="d-flex justify-content-between">
                                         <span>รวมโครงการ</span>
                                         <span class="number"><?= number_format($projectSubtotal, 2) ?></span>
@@ -573,7 +580,7 @@ function thai_date($date){
                             <?php endif; ?>
 
                             <tr class="table-dark fw-bold">
-                                <td colspan="8" class="text-white">
+                                <td colspan="9" class="text-white">
                                     <div class="d-flex justify-content-between">
                                         <span>รวมทั้งหมด</span>
                                         <span class="number text-white"><?= number_format($grandTotal, 2) ?></span>

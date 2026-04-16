@@ -140,8 +140,29 @@ if($year){
 
     <link rel="stylesheet" href="styles.css">
 <style>
-@media print{ .no-print{ display:none } }
-.date-nowrap{ white-space: nowrap; }
+@media print {
+    nav,
+    .navbar,
+    .btn,
+    .filter-card,
+    .search-box {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    .table-card {
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    .table-responsive {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+}
 </style>
 </head>
 
@@ -213,6 +234,13 @@ if($year){
                             <a class="dropdown-item"
                                href="report_landscape.php?year=<?= htmlspecialchars($selectedYear) ?>">
                                 รายงานภาพรวมงบประมาณตามไตรมาส
+                            </a>
+                        </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="report_overlap.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                               รายงานงบกันเหลื่อม
+                               
                             </a>
                         </li>
                     </ul>

@@ -1,7 +1,6 @@
 <?php
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
-$pdo = new PDO("mysql:host=localhost;dbname=budget_dtn;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+include 'db.php';
 
 // ---------------- รับพารามิเตอร์ ----------------
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;

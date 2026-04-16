@@ -70,12 +70,28 @@ if($year){
 <title>รายงานโครงการ</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-@media print{ .no-print{ display:none } }
-.project-box{
-    border:1px solid #ccc;
-    padding:20px;
-    margin-bottom:40px;
-    background:#fff;
+@media print {
+    nav,
+    .navbar,
+    .btn,
+    .filter-card,
+    .search-box {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    .table-card {
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    .table-responsive {
+        max-height: none !important;
+        overflow: visible !important;
+    }
 }
 </style>
 </head>
@@ -146,6 +162,13 @@ if($year){
                             <a class="dropdown-item"
                                href="report_landscape.php?year=<?= htmlspecialchars($selectedYear) ?>">
                                 รายงานภาพรวมงบประมาณตามไตรมาส
+                            </a>
+                        </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="report_overlap.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                               รายงานงบกันเหลื่อม
+                               
                             </a>
                         </li>
                     </ul>
@@ -265,8 +288,8 @@ $steps = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </colgroup>
 <tr class="table-light center">
 <th>ลำดับ</th>
-<th>รายการ</th>
-<th>วันที่</th>
+<th>ขั้นตอน</th>
+<th>วันที่ดำเนินการ</th>
 <th>รายละเอียด</th>
 </tr>
 <?php 

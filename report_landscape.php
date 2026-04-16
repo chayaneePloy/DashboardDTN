@@ -243,6 +243,8 @@ body {
                         <li><a class="dropdown-item" href="report.php?year=<?= h($fiscalYear) ?>">รายงานการจ่ายงวดงาน</a></li>
                         <li><a class="dropdown-item" href="report_all.php?year=<?= h($fiscalYear) ?>">รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน</a></li>
                         <li><a class="dropdown-item" href="report_landscape.php?year=<?= h($fiscalYear) ?>">รายงานภาพรวมงบประมาณตามไตรมาส</a></li>
+                        <li><a class="dropdown-item" href="report_overlap.php?year=<?= h($fiscalYear) ?>">รายงานงบกันเหลื่อม</a></li>
+                          
                     </ul>
                 </li>
             </ul>
@@ -266,7 +268,7 @@ body {
             </select>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 d-flex justify-content-end ms-auto gap-2">
             <button type="button" onclick="printReport()" class="btn btn-secondary">
                 🖨 พิมพ์
             </button>

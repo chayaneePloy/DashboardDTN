@@ -564,6 +564,13 @@ function thai_date($date) {
                                รายงานภาพรวมงบประมาณตามไตรมาส
                             </a>
                         </li>
+                          <li>
+                            <a class="dropdown-item"
+                               href="report_overlap.php?year=<?= htmlspecialchars($selectedYear) ?>">
+                               รายงานงบกันเหลื่อม
+
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- =============================== -->
@@ -749,14 +756,14 @@ switch ($quarter) {
    
     <div class="col-md-3">
         <div class="card p-3 bg-purple-400 text-white h-100">
-            <h6 class="mb-1">ใช้จ่ายแล้ว (สะสม)</h6>
+            <h6 class="mb-1">ใช้จ่ายแล้ว (ทั้งหมด)</h6>
             <div class="fs-5"><?php echo number_format($grand_paid_sum, 2); ?> บาท</div>
         </div>
     </div>
 
     <div class="col-md-3">
         <div class="card p-3 bg-purple-500 text-white h-100">
-            <h6 class="mb-1">ใช้จ่ายแล้ว (เฉพาะไตรมาส <?= $quarter ?>)</h6>
+            <h6 class="mb-1">ใช้จ่ายแล้ว (ตามไตรมาส <?= $quarter ?>)</h6>
             <div class="fs-5"><?php echo number_format($grand_paid_sum_exact_quarter, 2); ?> บาท</div>
         </div>
     </div>

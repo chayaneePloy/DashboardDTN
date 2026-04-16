@@ -1,6 +1,9 @@
 <?php
 // ---------------- เชื่อมต่อฐานข้อมูล ----------------
 include 'db.php';
+function h($s){
+    return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
 
 // ปีเริ่มต้นสำหรับช่องกรอก
 $selected_year    = $_GET['year']    ?? '';
@@ -240,11 +243,12 @@ $next_step = $next_stmt->fetch(PDO::FETCH_ASSOC);
 // ---------------- ดึง phases ----------------
 $phase_sql = "
     SELECT p.phase_id, p.phase_number, p.phase_name, p.amount, 
-           p.due_date, p.completion_date, p.payment_date, p.status
+           p.due_date, p.completion_date, p.payment_date, p.status,
+           p.overlap_type
     FROM phases p
     JOIN contracts c ON p.contract_detail_id = c.contract_id
     WHERE c.detail_item_id = :id_detail
-     ORDER BY p.phase_number ASC
+    ORDER BY p.phase_number ASC
 ";
 $phase_st = $pdo->prepare($phase_sql);
 $phase_st->execute([':id_detail' => $id_detail]);
@@ -638,7 +642,7 @@ function thai_date_ddmmyyyy($date) {
             </div>
             <div class="progress" style="height: 20px;">
                 <div
-                    class="progress-bar bg-success fw-bold progress-bar-striped progress-bar-animated"
+                    class="progress-bar bg-success fw-bold "
                     role="progressbar"
                     style="width: <?= $phase_percent ?>%;"
                     aria-valuenow="<?= $phase_percent ?>"
@@ -672,8 +676,10 @@ function thai_date_ddmmyyyy($date) {
                             <th>วันที่เริ่ม </th>
                             <th>วันที่สิ้นสุด</th>
                             <th>วันที่จ่าย </th>
+                             <th>งบกันเหลื่อม </th>
                             <th>จำนวนเงิน(บาท)</th>
                             <th>สถานะ</th>
+                           
                             <th>การดำเนินการ</th>
                             <th>แก้ไข</th>
                         </tr>
@@ -688,8 +694,12 @@ function thai_date_ddmmyyyy($date) {
                             <td><?= thai_date_full($p['due_date']) ?></td>
                             <td><?= thai_date_full($p['completion_date']) ?></td>
                             <td><?= thai_date_full($p['payment_date']) ?></td>
+                            <td class="text-end">
+    <?= h(!empty($p['overlap_type']) ? $p['overlap_type'] : 'ไม่กันเหลื่อม') ?>
+</td>
                             <td class="text-end"><?= number_format($p['amount'], 2) ?></td>
                             <td><?= htmlspecialchars($p['status']) ?></td>
+                            
                             <td><?= htmlspecialchars(mb_strimwidth($p['phase_name'], 0, 30, '...')) ?></td>
                             <td>
                                 <a href="edit_phase.php?phase_id=<?= $p['phase_id'] ?>" class="btn btn-sm btn-warning">
