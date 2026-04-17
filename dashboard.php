@@ -130,7 +130,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard งบประมาณ</title>
+<title>Dashboard </title>
 <link rel="icon" type="image/png" href="assets/logoio.ico">
 <link rel="shortcut icon" type="image/png" href="assets/logo3.png">
 
@@ -168,7 +168,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
 
     <!-- Brand -->
     <a class="navbar-brand fw-bold" href="index.php?year=<?= $selectedYear ?>&quarter=<?= $_GET['quarter'] ?? 1 ?>"">
-      📊 Dashboard การจ่ายงวด
+      📊 Dashboard 
     </a>
 
     <!-- Hamburger -->
@@ -200,7 +200,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
 
 <div class="container my-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>งบประมาณ</h2>
+    <h2>เพิ่มปีงบประมาณ/โครงการ</h2>
   </div>
  <!-- ปุ่มเพิ่มงบ -->
   <div class="mb-3 d-flex justify-content-between align-items-center">
@@ -309,7 +309,7 @@ $totalProjects = (int)$countStmt->fetchColumn();
       </div>
     </div>
   </div>
-
+<p class="text-danger mt-4">*กด เพิ่ม/แก้ไข เพื่อใส่ข้อมูลเลขานุการ</p>
   <!-- ตารางแสดงรายการ -->
   <div class="row row-cols-1 row-cols-md-2 g-3">
     <?php foreach ($items as $item): ?>

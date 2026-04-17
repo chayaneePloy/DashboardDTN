@@ -70,6 +70,19 @@ $contract_date  = $contract['contract_date']    ?? '-';
 $contract_ends  = $contract['contract_ends']    ?? '-';
 $requested_amount = isset($requested_row['requested_amount']) ? number_format($requested_row['requested_amount'], 2) : '-';
 
+// ---------------- ดึงผู้รับผิดชอบ ----------------
+$sec_stmt = $pdo->prepare("
+    SELECT tor_secretary, procurement_secretary, inspector_secretary
+    FROM budget_detail
+    WHERE id_detail = :id_detail
+    LIMIT 1
+");
+$sec_stmt->execute([':id_detail' => $id_detail]);
+$sec = $sec_stmt->fetch(PDO::FETCH_ASSOC);
+
+$tor_secretary = $sec['tor_secretary'] ?? '';
+$procurement_secretary = $sec['procurement_secretary'] ?? '';
+$inspector_secretary = $sec['inspector_secretary'] ?? '';
 // ---------------- 9 ขั้นตอนมาตรฐาน ----------------
 $defaultSteps = [
     1 => 'ขออนุมัติโครงการ',
@@ -325,7 +338,15 @@ function thai_date_ddmmyyyy($date) {
     return sprintf('%02d/%02d/%04d', $d, $m, $y);
 }
 
+function format_names($text) {
+    if (!$text) return '<span class="text-muted">-</span>';
 
+    // รองรับ , และ Enter
+    $names = preg_split('/[\r\n,]+/', $text);
+    $names = array_filter(array_map('trim', $names));
+
+    return implode('<br>', array_map('htmlspecialchars', $names));
+}
 
 
 ?>
@@ -454,6 +475,36 @@ function thai_date_ddmmyyyy($date) {
                 <small class="text-secondary">ดำเนินการแล้ว <?= $completed ?>/<?= $total ?> ขั้นตอน</small>
             </div>
         </div>
+        <div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+
+                <h5 class="fw-bold text-primary mb-3">👤 ผู้รับผิดชอบโครงการ</h5>
+
+                <div class="row text-start">
+
+                    <div class="col-md-4 mb-2">
+                        <div class="fw-semibold text-secondary">เลขาร่าง TOR</div>
+                        <div><?= format_names($tor_secretary) ?></div>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="fw-semibold text-secondary">เลขาจัดจ้าง</div>
+                        <div><?= format_names($procurement_secretary) ?></div>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="fw-semibold text-secondary">เลขาตรวจรับ</div>
+                        <div><?= format_names($inspector_secretary) ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
         <!-- Current/Next Step -->
         <div class="row mb-4">
             <div class="col-md-12">

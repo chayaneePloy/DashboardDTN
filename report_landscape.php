@@ -214,14 +214,14 @@ body {
                 <li class="nav-item">
                     <a class="nav-link active fs-5 text-white px-3"
                        href="add_budget_act.php?year=<?= h($fiscalYear) ?>">
-                        เพิ่มงบตาม พ.ร.บ.+เป้าหมายไตรมาส
+                        เพิ่มงบตาม พ.ร.บ./เป้าหมายไตรมาส
                     </a>
                 </li>
 
                 <li class="nav-item">
                     <a class="nav-link fs-5 text-white px-3"
                        href="dashboard.php?year=<?= h($fiscalYear) ?>">
-                        เพิ่มงบตามวงเงินสัญญา
+                          เพิ่มปีงบ/โครงการ
                     </a>
                 </li>
 
@@ -239,8 +239,7 @@ body {
                         รายงาน
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="reportDropdown">
-                        <li><a class="dropdown-item" href="report_project_full.php?year=<?= h($fiscalYear) ?>">รายงานจัดซื้อจัดจ้าง</a></li>
-                        <li><a class="dropdown-item" href="report.php?year=<?= h($fiscalYear) ?>">รายงานการจ่ายงวดงาน</a></li>
+                        <li><a class="dropdown-item" href="report_full.php?year=<?= h($fiscalYear) ?>">รายงานภาพรวมโครงการ</a></li>
                         <li><a class="dropdown-item" href="report_all.php?year=<?= h($fiscalYear) ?>">รายงานรวมจัดซื้อจัดจ้าง/การจ่ายงวดงาน</a></li>
                         <li><a class="dropdown-item" href="report_landscape.php?year=<?= h($fiscalYear) ?>">รายงานภาพรวมงบประมาณตามไตรมาส</a></li>
                         <li><a class="dropdown-item" href="report_overlap.php?year=<?= h($fiscalYear) ?>">รายงานงบกันเหลื่อม</a></li>
